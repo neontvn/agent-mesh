@@ -55,13 +55,15 @@ func main() {
 			"if set, run in client mode: call this capability on a peer and exit")
 		invokePayload = flag.String("invoke-payload", "",
 			"payload string to send when invoking (used only with --invoke-capability)")
+		invokeFrom = flag.String("invoke-from", "cli",
+			"identifier reported as the caller in ReportInvoke (used with --invoke-capability)")
 	)
 	flag.Parse()
 
 	// Client mode: ask the control plane to pick a target for the given
 	// capability, dial it directly, invoke, print the response, exit.
 	if *invokeCapability != "" {
-		runClient(*controlPlaneAddr, *invokeCapability, *invokePayload)
+		runClient(*controlPlaneAddr, *invokeCapability, *invokePayload, *invokeFrom)
 		return
 	}
 
@@ -208,7 +210,7 @@ func (d *dataPlaneServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*p
 // runClient executes a one-shot capability invocation: it asks the control
 // plane to SelectTarget for the capability, dials the chosen agent's
 // sidecar directly, calls Invoke, prints the response, and exits.
-func runClient(controlPlaneAddr, capability, payload string) {
+func runClient(controlPlaneAddr, capability, payload, from string) {
 	// Dial the control plane.
 	cpConn, err := grpc.NewClient(
 		controlPlaneAddr,
@@ -251,10 +253,26 @@ func runClient(controlPlaneAddr, capability, payload string) {
 	invCtx, invCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer invCancel()
 
+	invokeStart := time.Now()
 	resp, err := dpClient.Invoke(invCtx, &pb.InvokeRequest{
 		Capability: capability,
 		Payload:    []byte(payload),
 	})
+	durationMs := time.Since(invokeStart).Milliseconds()
+	ok := err == nil
+
+	// Report the invocation to the control plane so the live UI can
+	// visualize it. Best-effort; failures here do not affect the call.
+	repCtx, repCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	_, _ = cpClient.ReportInvoke(repCtx, &pb.ReportInvokeRequest{
+		CallerId:   from,
+		CalleeId:   target.AgentId,
+		Capability: capability,
+		DurationMs: durationMs,
+		Ok:         ok,
+	})
+	repCancel()
+
 	if err != nil {
 		log.Fatalf("Invoke: %v", err)
 	}

@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"net"
+	"net/http"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -41,6 +42,7 @@ import (
 	agentmeshv1 "github.com/neontvn/agent-mesh/api/v1"
 	"github.com/neontvn/agent-mesh/internal/controller"
 	"github.com/neontvn/agent-mesh/internal/server"
+	"github.com/neontvn/agent-mesh/internal/web"
 	pb "github.com/neontvn/agent-mesh/proto/agentmesh/v1"
 	// +kubebuilder:scaffold:imports
 )
@@ -183,9 +185,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Shared event bus for mesh events broadcast to UI subscribers.
+	bus := web.NewEventBus()
+
 	if err := (&controller.AgentReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		Bus:    bus,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "agent")
 		os.Exit(1)
@@ -215,6 +221,7 @@ func main() {
 		pb.RegisterControlPlaneServer(grpcServer, &server.ControlPlaneServer{
 			K8sClient: mgr.GetClient(),
 			Namespace: "default",
+			Bus:       bus,
 		})
 
 		// Enable reflection so grpcurl can discover the service without
@@ -224,6 +231,17 @@ func main() {
 		setupLog.Info("Starting gRPC server", "addr", ":9091")
 		if err := grpcServer.Serve(lis); err != nil {
 			setupLog.Error(err, "gRPC server crashed")
+		}
+	}()
+
+	// Start the web UI server (static files + WebSocket event stream).
+	// Port 8082 — note 8081 is taken by the controller-runtime health probe.
+	go func() {
+		webAddr := ":8082"
+		webSrv := web.NewServer(bus)
+		setupLog.Info("Starting web UI server", "addr", webAddr)
+		if err := http.ListenAndServe(webAddr, webSrv.Handler()); err != nil {
+			setupLog.Error(err, "web UI server crashed")
 		}
 	}()
 

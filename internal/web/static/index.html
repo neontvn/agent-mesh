@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentMesh — Live Mesh</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <aside id="sidebar">
+            <header class="sidebar-header">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="2.4"></circle>
+                        <circle cx="4" cy="6" r="2"></circle>
+                        <circle cx="20" cy="6" r="2"></circle>
+                        <circle cx="4" cy="18" r="2"></circle>
+                        <circle cx="20" cy="18" r="2"></circle>
+                        <line x1="5.7" y1="6.7" x2="10.2" y2="11"></line>
+                        <line x1="18.3" y1="6.7" x2="13.8" y2="11"></line>
+                        <line x1="5.7" y1="17.3" x2="10.2" y2="13"></line>
+                        <line x1="18.3" y1="17.3" x2="13.8" y2="13"></line>
+                    </svg>
+                    <span class="logo-text">Agent<strong>Mesh</strong></span>
+                </div>
+            </header>
+            <h2 class="section-title">Live Mesh</h2>
+            <ul id="agent-list" class="agent-list"></ul>
+            <div class="stats-card">
+                <div class="stats-label">Active calls/sec</div>
+                <div id="active-calls" class="stats-value">0.0</div>
+            </div>
+        </aside>
+
+        <main id="viewport-wrap">
+            <header class="viewport-header">3D Viewport</header>
+            <div id="viewport"></div>
+            <div id="empty-state" class="empty-state">
+                <div class="empty-icon">◌</div>
+                <div>Waiting for agents to register…</div>
+                <div class="empty-sub">Run a sidecar to bring the mesh to life.</div>
+            </div>
+        </main>
+    </div>
+
+    <footer id="timeline-bar">
+        <div class="timeline-controls">
+            <button class="ctrl" title="play">▶</button>
+            <button class="ctrl" title="pause">⏸</button>
+            <button class="ctrl" title="replay">↻</button>
+        </div>
+        <canvas id="timeline" class="timeline"></canvas>
+        <div id="live-indicator" class="live"><span class="live-dot"></span>LIVE</div>
+    </footer>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module" src="main.js"></script>
+</body>
+</html>

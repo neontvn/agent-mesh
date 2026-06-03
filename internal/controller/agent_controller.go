@@ -26,6 +26,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	agentmeshv1 "github.com/neontvn/agent-mesh/api/v1"
+	"github.com/neontvn/agent-mesh/internal/web"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -33,6 +34,10 @@ import (
 type AgentReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	// Bus is the event bus for fanning mesh events out to UI subscribers.
+	// Optional; if nil, events are not published.
+	Bus *web.EventBus
 }
 
 // +kubebuilder:rbac:groups=agentmesh.agentmesh.io,resources=agents,verbs=get;list;watch;create;update;patch;delete
@@ -60,6 +65,11 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if err := r.Get(ctx, req.NamespacedName, &agent); err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("Agent deleted", "name", req.Name)
+			if r.Bus != nil {
+				r.Bus.Publish(web.EventAgentUnregistered, map[string]interface{}{
+					"agent_id": req.Name,
+				})
+			}
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -84,9 +94,17 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			"name", agent.Name,
 			"last_seen", effectiveTime,
 		)
+		oldHealth := agent.Status.Health
 		agent.Status.Health = "unhealthy"
 		if err := r.Status().Update(ctx, &agent); err != nil {
 			return ctrl.Result{}, err
+		}
+		if r.Bus != nil {
+			r.Bus.Publish(web.EventAgentHealthChanged, map[string]interface{}{
+				"agent_id":   agent.Name,
+				"old_health": oldHealth,
+				"health":     "unhealthy",
+			})
 		}
 	}
 

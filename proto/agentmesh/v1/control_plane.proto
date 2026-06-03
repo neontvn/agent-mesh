@@ -26,6 +26,11 @@ service ControlPlane {
     // the requested capability. Used by sidecars that defer routing to the
     // control plane.
     rpc SelectTarget(SelectTargetRequest) returns (SelectTargetResponse);
+
+    // ReportInvoke is called by a sidecar after each A2A Invoke completes
+    // so the control plane can broadcast routing events to observability
+    // subscribers (the live UI, metrics, traces).
+    rpc ReportInvoke(ReportInvokeRequest) returns (ReportInvokeResponse);
 }
 
 // RegisterRequest is sent by a sidecar when its local agent starts up.
@@ -115,4 +120,17 @@ message AgentInfo {
     string endpoint = 3;
     map<string, string> metadata = 4;
 }
+
+// ReportInvokeRequest is sent after an A2A Invoke completes so the control
+// plane can record and broadcast it.
+message ReportInvokeRequest {
+    string caller_id = 1;
+    string callee_id = 2;
+    string capability = 3;
+    int64 duration_ms = 4;
+    bool ok = 5;
+}
+
+// ReportInvokeResponse is an empty acknowledgement.
+message ReportInvokeResponse {}
 

@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	agentmeshv1 "github.com/neontvn/agent-mesh/api/v1"
+	"github.com/neontvn/agent-mesh/internal/web"
 	pb "github.com/neontvn/agent-mesh/proto/agentmesh/v1"
 )
 
@@ -45,6 +46,10 @@ type ControlPlaneServer struct {
 	// Namespace where Agent CRDs are materialized. Hardcoded to "default"
 	// for v0; will be configurable later.
 	Namespace string
+
+	// Bus is the event bus that fans mesh events out to UI subscribers.
+	// Optional; if nil, events are simply not published.
+	Bus *web.EventBus
 
 	// rrMu protects rrCounters from concurrent SelectTarget calls.
 	rrMu sync.Mutex
@@ -90,6 +95,14 @@ func (s *ControlPlaneServer) Register(ctx context.Context, req *pb.RegisterReque
 		return nil, err
 	}
 
+	if s.Bus != nil {
+		s.Bus.Publish(web.EventAgentRegistered, map[string]interface{}{
+			"agent_id":     req.AgentId,
+			"capabilities": req.Capabilities,
+			"endpoint":     req.Endpoint,
+		})
+	}
+
 	return &pb.RegisterResponse{
 		LeaseId:         req.AgentId, // simple identity scheme for v0
 		LeaseTtlSeconds: 30,
@@ -116,6 +129,13 @@ func (s *ControlPlaneServer) Heartbeat(ctx context.Context, req *pb.HeartbeatReq
 
 	if err := s.K8sClient.Status().Update(ctx, &agent); err != nil {
 		return nil, err
+	}
+
+	if s.Bus != nil {
+		s.Bus.Publish(web.EventAgentHeartbeat, map[string]interface{}{
+			"agent_id": req.AgentId,
+			"health":   agent.Status.Health,
+		})
 	}
 
 	return &pb.HeartbeatResponse{
@@ -199,4 +219,19 @@ func agentToInfo(a *agentmeshv1.Agent) *pb.AgentInfo {
 		Endpoint:     a.Spec.Endpoint,
 		Metadata:     a.Spec.Metadata,
 	}
+}
+
+// ReportInvoke records an A2A invocation that has just completed and
+// broadcasts the event to observability subscribers (the live UI).
+func (s *ControlPlaneServer) ReportInvoke(ctx context.Context, req *pb.ReportInvokeRequest) (*pb.ReportInvokeResponse, error) {
+	if s.Bus != nil {
+		s.Bus.Publish(web.EventInvokeCompleted, map[string]interface{}{
+			"caller_id":   req.CallerId,
+			"callee_id":   req.CalleeId,
+			"capability":  req.Capability,
+			"duration_ms": req.DurationMs,
+			"ok":          req.Ok,
+		})
+	}
+	return &pb.ReportInvokeResponse{}, nil
 }

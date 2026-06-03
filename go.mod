@@ -3,6 +3,7 @@ module github.com/neontvn/agent-mesh
 go 1.25.7
 
 require (
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
 	google.golang.org/grpc v1.72.2

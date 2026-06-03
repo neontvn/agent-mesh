@@ -23,6 +23,7 @@ const (
 	ControlPlane_Heartbeat_FullMethodName    = "/agentmesh.v1.ControlPlane/Heartbeat"
 	ControlPlane_Discover_FullMethodName     = "/agentmesh.v1.ControlPlane/Discover"
 	ControlPlane_SelectTarget_FullMethodName = "/agentmesh.v1.ControlPlane/SelectTarget"
+	ControlPlane_ReportInvoke_FullMethodName = "/agentmesh.v1.ControlPlane/ReportInvoke"
 )
 
 // ControlPlaneClient is the client API for ControlPlane service.
@@ -48,6 +49,10 @@ type ControlPlaneClient interface {
 	// the requested capability. Used by sidecars that defer routing to the
 	// control plane.
 	SelectTarget(ctx context.Context, in *SelectTargetRequest, opts ...grpc.CallOption) (*SelectTargetResponse, error)
+	// ReportInvoke is called by a sidecar after each A2A Invoke completes
+	// so the control plane can broadcast routing events to observability
+	// subscribers (the live UI, metrics, traces).
+	ReportInvoke(ctx context.Context, in *ReportInvokeRequest, opts ...grpc.CallOption) (*ReportInvokeResponse, error)
 }
 
 type controlPlaneClient struct {
@@ -98,6 +103,16 @@ func (c *controlPlaneClient) SelectTarget(ctx context.Context, in *SelectTargetR
 	return out, nil
 }
 
+func (c *controlPlaneClient) ReportInvoke(ctx context.Context, in *ReportInvokeRequest, opts ...grpc.CallOption) (*ReportInvokeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReportInvokeResponse)
+	err := c.cc.Invoke(ctx, ControlPlane_ReportInvoke_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControlPlaneServer is the server API for ControlPlane service.
 // All implementations must embed UnimplementedControlPlaneServer
 // for forward compatibility.
@@ -121,6 +136,10 @@ type ControlPlaneServer interface {
 	// the requested capability. Used by sidecars that defer routing to the
 	// control plane.
 	SelectTarget(context.Context, *SelectTargetRequest) (*SelectTargetResponse, error)
+	// ReportInvoke is called by a sidecar after each A2A Invoke completes
+	// so the control plane can broadcast routing events to observability
+	// subscribers (the live UI, metrics, traces).
+	ReportInvoke(context.Context, *ReportInvokeRequest) (*ReportInvokeResponse, error)
 	mustEmbedUnimplementedControlPlaneServer()
 }
 
@@ -142,6 +161,9 @@ func (UnimplementedControlPlaneServer) Discover(context.Context, *DiscoverReques
 }
 func (UnimplementedControlPlaneServer) SelectTarget(context.Context, *SelectTargetRequest) (*SelectTargetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SelectTarget not implemented")
+}
+func (UnimplementedControlPlaneServer) ReportInvoke(context.Context, *ReportInvokeRequest) (*ReportInvokeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReportInvoke not implemented")
 }
 func (UnimplementedControlPlaneServer) mustEmbedUnimplementedControlPlaneServer() {}
 func (UnimplementedControlPlaneServer) testEmbeddedByValue()                      {}
@@ -236,6 +258,24 @@ func _ControlPlane_SelectTarget_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ControlPlane_ReportInvoke_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReportInvokeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServer).ReportInvoke(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlane_ReportInvoke_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServer).ReportInvoke(ctx, req.(*ReportInvokeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ControlPlane_ServiceDesc is the grpc.ServiceDesc for ControlPlane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -258,6 +298,10 @@ var ControlPlane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SelectTarget",
 			Handler:    _ControlPlane_SelectTarget_Handler,
+		},
+		{
+			MethodName: "ReportInvoke",
+			Handler:    _ControlPlane_ReportInvoke_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
