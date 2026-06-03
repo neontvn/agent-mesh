@@ -19,12 +19,15 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"net"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -37,6 +40,8 @@ import (
 
 	agentmeshv1 "github.com/neontvn/agent-mesh/api/v1"
 	"github.com/neontvn/agent-mesh/internal/controller"
+	"github.com/neontvn/agent-mesh/internal/server"
+	pb "github.com/neontvn/agent-mesh/proto/agentmesh/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -195,6 +200,32 @@ func main() {
 		setupLog.Error(err, "Failed to set up ready check")
 		os.Exit(1)
 	}
+
+	// Start the gRPC server alongside the controller manager. They share
+	// the same Kubernetes client (mgr.GetClient()) so the gRPC handlers
+	// see the same cached cluster state as the reconciler.
+	go func() {
+		lis, err := net.Listen("tcp", ":9091")
+		if err != nil {
+			setupLog.Error(err, "Failed to listen for gRPC")
+			os.Exit(1)
+		}
+
+		grpcServer := grpc.NewServer()
+		pb.RegisterControlPlaneServer(grpcServer, &server.ControlPlaneServer{
+			K8sClient: mgr.GetClient(),
+			Namespace: "default",
+		})
+
+		// Enable reflection so grpcurl can discover the service without
+		// us shipping the .proto file with the client.
+		reflection.Register(grpcServer)
+
+		setupLog.Info("Starting gRPC server", "addr", ":9091")
+		if err := grpcServer.Serve(lis); err != nil {
+			setupLog.Error(err, "gRPC server crashed")
+		}
+	}()
 
 	setupLog.Info("Starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

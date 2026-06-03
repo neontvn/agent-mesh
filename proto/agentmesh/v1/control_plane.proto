@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package agentmesh.v1;
+
+option go_package = "github.com/neontvn/agent-mesh/proto/agentmesh/v1;agentmeshv1";
+
+// ControlPlane is the gRPC service exposed by the AgentMesh control plane
+// to sidecar data planes running alongside each agent.
+service ControlPlane {
+    // Register registers an agent with the control plane. The control plane
+    // materializes the registration as an Agent CRD in the Kubernetes cluster
+    // and returns a lease handle that the sidecar must refresh via Heartbeat.
+    rpc Register(RegisterRequest) returns (RegisterResponse);
+
+    // Heartbeat refreshes the lease of a previously-registered agent. If a
+    // heartbeat is not received within the lease TTL, the control plane marks
+    // the agent unhealthy and removes it from the active pool.
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+// RegisterRequest is sent by a sidecar when its local agent starts up.
+message RegisterRequest {
+    // Unique identifier for this agent instance.
+    // Convention: <agent-name>-<pod-uid>.
+    string agent_id = 1;
+  
+    // Capabilities advertised by this agent (e.g., "search", "summarize").
+    repeated string capabilities = 2;
+
+    // Network endpoint where this agent (via its sidecar) receives A2A traffic.
+    // Typically a Kubernetes Service or Pod IP plus port.
+    string endpoint = 3;
+
+    // Free-form metadata describing the agent (framework, version, etc.).
+    map<string, string> metadata = 4;
+
+}
+
+// RegisterResponse is returned to the sidecar after a successful registration.
+message RegisterResponse {
+    // Opaque lease handle. Must be supplied on subsequent Heartbeat calls.
+    string lease_id = 1;
+
+    // Lease time-to-live in seconds. The sidecar should send Heartbeats more
+    // frequently than this value (typical: at 1/3 of TTL).
+    int32 lease_ttl_seconds = 2;
+}
+  
+// HeartbeatRequest is sent by a sidecar at a regular interval to refresh
+// its agent's registration.  
+message HeartbeatRequest {
+    // The agent that is heartbeating; must match a prior Register call.
+    string agent_id = 1;
+
+    // The lease handle returned by Register.
+    string lease_id = 2;
+
+    // Current health state of the agent.
+    HealthState health = 3;
+
+    // Normalized load metric in [0.0, 1.0]. Used by the routing engine
+    // for least-loaded selection in later milestones.
+    double load = 4;
+}
+
+// HeartbeatResponse acknowledges a heartbeat and returns the refreshed TTL.
+message HeartbeatResponse {
+    int32 lease_ttl_seconds = 1;
+}
+
+// HealthState describes an agent's runtime health.
+enum HealthState {
+    HEALTH_STATE_UNSPECIFIED = 0;
+    HEALTH_STATE_HEALTHY = 1;
+    HEALTH_STATE_DEGRADED = 2;
+    HEALTH_STATE_UNHEALTHY = 3;
+}
+
