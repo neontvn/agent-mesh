@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"google.golang.org/grpc"
@@ -43,6 +45,8 @@ func main() {
 			"network endpoint where this agent receives A2A traffic (required)")
 		metadataStr = flag.String("metadata", "",
 			"comma-separated key=value pairs (e.g., framework=langgraph,version=v1)")
+		heartbeatInterval = flag.Duration("heartbeat-interval", 10*time.Second,
+			"how often the sidecar sends Heartbeat (must be less than the lease TTL)")
 	)
 	flag.Parse()
 
@@ -80,7 +84,37 @@ func main() {
 	}
 
 	fmt.Printf("Registered. lease_id=%s ttl=%ds\n", resp.LeaseId, resp.LeaseTtlSeconds)
-	os.Exit(0)
+
+	// Wire up signal handling so Ctrl+C exits cleanly instead of leaving
+	// the heartbeat goroutine running.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	ticker := time.NewTicker(*heartbeatInterval)
+	defer ticker.Stop()
+
+	log.Printf("starting heartbeat loop (every %s)", *heartbeatInterval)
+	for {
+		select {
+		case <-ticker.C:
+			hbCtx, hbCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_, err := client.Heartbeat(hbCtx, &pb.HeartbeatRequest{
+				AgentId: *agentID,
+				LeaseId: resp.LeaseId,
+				Health:  pb.HealthState_HEALTH_STATE_HEALTHY,
+				Load:    0.0,
+			})
+			hbCancel()
+			if err != nil {
+				log.Printf("heartbeat failed: %v", err)
+			} else {
+				log.Printf("heartbeat ok")
+			}
+		case sig := <-sigCh:
+			log.Printf("received signal %s, shutting down", sig)
+			return
+		}
+	}
 }
 
 // splitAndTrim splits a comma-separated string and trims whitespace from each

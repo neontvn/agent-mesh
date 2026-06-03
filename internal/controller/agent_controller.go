@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -47,10 +48,12 @@ type AgentReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.23.3/pkg/reconcile
-func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+// leaseTTL is how long an agent may go without a Heartbeat before being
+// marked unhealthy. Hardcoded for v0 to match the LeaseTtlSeconds value
+// returned by the control-plane Register handler.
+const leaseTTL = 30 * time.Second
 
-	// TODO(user): your logic here
+func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := logf.FromContext(ctx)
 
 	var agent agentmeshv1.Agent
@@ -68,7 +71,28 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		"endpoint", agent.Spec.Endpoint,
 	)
 
-	return ctrl.Result{}, nil
+	// Lease eviction: if no Heartbeat has landed within leaseTTL, mark
+	// the agent unhealthy. Fresh agents (no heartbeat yet) get a grace
+	// window measured from their creation timestamp.
+	effectiveTime := agent.CreationTimestamp.Time
+	if agent.Status.LastHeartbeat != nil {
+		effectiveTime = agent.Status.LastHeartbeat.Time
+	}
+
+	if time.Since(effectiveTime) > leaseTTL && agent.Status.Health != "unhealthy" {
+		logger.Info("Lease expired, marking unhealthy",
+			"name", agent.Name,
+			"last_seen", effectiveTime,
+		)
+		agent.Status.Health = "unhealthy"
+		if err := r.Status().Update(ctx, &agent); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Requeue periodically so lease expiry is detected even without
+	// other changes triggering reconciliation.
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -19,6 +19,7 @@ package server
 import (
 	"context"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -43,9 +44,9 @@ type ControlPlaneServer struct {
 	Namespace string
 }
 
-// Register handles a sidecar's initial registration. It creates an Agent
-// CRD reflecting the sidecar's declared capabilities and returns a lease
-// handle the sidecar must refresh via Heartbeat.
+// Register handles a sidecar's initial registration. If the Agent CRD
+// already exists, its spec is updated instead of returning an error —
+// this makes restarting sidecars safe.
 func (s *ControlPlaneServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	agent := &agentmeshv1.Agent{
 		ObjectMeta: metav1.ObjectMeta{
@@ -59,7 +60,23 @@ func (s *ControlPlaneServer) Register(ctx context.Context, req *pb.RegisterReque
 		},
 	}
 
-	if err := s.K8sClient.Create(ctx, agent); err != nil {
+	err := s.K8sClient.Create(ctx, agent)
+	if apierrors.IsAlreadyExists(err) {
+		// Re-fetch the existing CRD to pick up its current resourceVersion
+		// (required by the API server for optimistic concurrency), then
+		// update its spec.
+		var existing agentmeshv1.Agent
+		if getErr := s.K8sClient.Get(ctx, client.ObjectKey{
+			Namespace: s.Namespace,
+			Name:      req.AgentId,
+		}, &existing); getErr != nil {
+			return nil, getErr
+		}
+		existing.Spec = agent.Spec
+		if updErr := s.K8sClient.Update(ctx, &existing); updErr != nil {
+			return nil, updErr
+		}
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -69,11 +86,43 @@ func (s *ControlPlaneServer) Register(ctx context.Context, req *pb.RegisterReque
 	}, nil
 }
 
-// Heartbeat will be fully implemented in M2.4. For now it's a stub that
-// just acknowledges the call so the sidecar can wire up the loop
-// end-to-end.
+// Heartbeat refreshes the agent's status on its CRD. It sets lastHeartbeat
+// to now and records the reported health state. Because status is a
+// subresource (see kubebuilder:subresource:status marker on Agent), the
+// update goes through Status().Update() — calling plain Update() would
+// silently drop status changes.
 func (s *ControlPlaneServer) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
+	var agent agentmeshv1.Agent
+	if err := s.K8sClient.Get(ctx, client.ObjectKey{
+		Namespace: s.Namespace,
+		Name:      req.AgentId,
+	}, &agent); err != nil {
+		return nil, err
+	}
+
+	now := metav1.Now()
+	agent.Status.LastHeartbeat = &now
+	agent.Status.Health = healthStateToString(req.Health)
+
+	if err := s.K8sClient.Status().Update(ctx, &agent); err != nil {
+		return nil, err
+	}
+
 	return &pb.HeartbeatResponse{
 		LeaseTtlSeconds: 30,
 	}, nil
+}
+
+// healthStateToString maps the proto enum to the string we store on the CRD.
+func healthStateToString(h pb.HealthState) string {
+	switch h {
+	case pb.HealthState_HEALTH_STATE_HEALTHY:
+		return "healthy"
+	case pb.HealthState_HEALTH_STATE_DEGRADED:
+		return "degraded"
+	case pb.HealthState_HEALTH_STATE_UNHEALTHY:
+		return "unhealthy"
+	default:
+		return ""
+	}
 }
