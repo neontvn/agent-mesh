@@ -236,7 +236,7 @@ function hashTo01(s) {
 
 // ===================== Invoke animations =====================
 
-export function animateInvoke(callerId, calleeId) {
+export function animateInvoke(callerId, calleeId, ok = true) {
     const a = agentGroups.get(callerId);
     const b = agentGroups.get(calleeId);
     if (!a || !b) return;
@@ -248,19 +248,22 @@ export function animateInvoke(callerId, calleeId) {
     mid.y += Math.min(4, dist * 0.45);
     const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
 
-    // Glowing arc tube
+    // Color the arc cyan for successful invokes, red for failed ones.
+    const arcColor = ok ? 0x5cd5fb : 0xff5577;
+    const particleColor = ok ? 0xffffff : 0xff99aa;
+
     const arcGeom = new THREE.TubeGeometry(curve, 48, 0.05, 8, false);
     const arcMat = new THREE.MeshBasicMaterial({
-        color: 0x5cd5fb,
+        color: arcColor,
         transparent: true,
-        opacity: 0.55,
+        opacity: ok ? 0.55 : 0.7,
     });
     const arc = new THREE.Mesh(arcGeom, arcMat);
     scene.add(arc);
 
     // Bright particle that flies along the curve
     const partGeom = new THREE.SphereGeometry(0.13, 16, 16);
-    const partMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+    const partMat = new THREE.MeshBasicMaterial({ color: particleColor, transparent: true, opacity: 1 });
     const particle = new THREE.Mesh(partGeom, partMat);
     scene.add(particle);
 
@@ -273,6 +276,7 @@ export function animateInvoke(callerId, calleeId) {
         arc,
         arcMat,
         curve,
+        ok,
     });
 }
 

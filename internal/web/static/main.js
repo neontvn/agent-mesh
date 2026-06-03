@@ -83,7 +83,7 @@ function handleEvent(event) {
             recentInvokes.push(ts.getTime());
             timelineInvokes.push(ts.getTime());
             if (d.caller_id && d.callee_id) {
-                animateInvoke(d.caller_id, d.callee_id);
+                animateInvoke(d.caller_id, d.callee_id, d.ok !== false);
             }
             break;
         }

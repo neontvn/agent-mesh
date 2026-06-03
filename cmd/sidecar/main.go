@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 
+	"github.com/neontvn/agent-mesh/internal/circuit"
 	pb "github.com/neontvn/agent-mesh/proto/agentmesh/v1"
 )
 
@@ -57,13 +58,15 @@ func main() {
 			"payload string to send when invoking (used only with --invoke-capability)")
 		invokeFrom = flag.String("invoke-from", "cli",
 			"identifier reported as the caller in ReportInvoke (used with --invoke-capability)")
+		invokeInterval = flag.Duration("invoke-interval", 0,
+			"if > 0, repeat the invocation at this interval (until Ctrl+C)")
 	)
 	flag.Parse()
 
 	// Client mode: ask the control plane to pick a target for the given
 	// capability, dial it directly, invoke, print the response, exit.
 	if *invokeCapability != "" {
-		runClient(*controlPlaneAddr, *invokeCapability, *invokePayload, *invokeFrom)
+		runClient(*controlPlaneAddr, *invokeCapability, *invokePayload, *invokeFrom, *invokeInterval)
 		return
 	}
 
@@ -207,11 +210,18 @@ func (d *dataPlaneServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*p
 	}, nil
 }
 
-// runClient executes a one-shot capability invocation: it asks the control
-// plane to SelectTarget for the capability, dials the chosen agent's
-// sidecar directly, calls Invoke, prints the response, and exits.
-func runClient(controlPlaneAddr, capability, payload, from string) {
-	// Dial the control plane.
+// runClient runs the sidecar in outbound-client mode. It asks the control
+// plane for a target advertising the given capability, dials the chosen
+// peer, calls Invoke, and reports the outcome to the control plane.
+//
+// A per-peer circuit breaker (3 consecutive failures -> opens for 15s)
+// protects against repeatedly dispatching to a dead peer. When a peer's
+// circuit is open, runClient re-asks SelectTarget to get a different
+// candidate, up to maxAttempts per invocation.
+//
+// If interval > 0, the invocation repeats at that cadence until Ctrl+C;
+// breaker state and peer connections persist across iterations.
+func runClient(controlPlaneAddr, capability, payload, from string, interval time.Duration) {
 	cpConn, err := grpc.NewClient(
 		controlPlaneAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -223,59 +233,124 @@ func runClient(controlPlaneAddr, capability, payload, from string) {
 
 	cpClient := pb.NewControlPlaneClient(cpConn)
 
-	// Ask the control plane to choose a target for this capability.
-	selCtx, selCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer selCancel()
+	// Per-peer breaker: open after 3 consecutive failures; stay open for 15s.
+	breaker := circuit.New(3, 15*time.Second)
 
-	sel, err := cpClient.SelectTarget(selCtx, &pb.SelectTargetRequest{
-		Capability: capability,
-	})
-	if err != nil {
-		log.Fatalf("SelectTarget: %v", err)
+	// Persistent connection pool keyed by endpoint, so we don't redial on
+	// every invocation in loop mode.
+	peerConns := map[string]*grpc.ClientConn{}
+	defer func() {
+		for _, c := range peerConns {
+			_ = c.Close()
+		}
+	}()
+
+	invoke := func() {
+		const maxAttempts = 5
+		for attempt := 0; attempt < maxAttempts; attempt++ {
+			selCtx, selCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			sel, selErr := cpClient.SelectTarget(selCtx, &pb.SelectTargetRequest{
+				Capability: capability,
+			})
+			selCancel()
+			if selErr != nil {
+				log.Printf("SelectTarget: %v", selErr)
+				return
+			}
+			target := sel.Agent
+
+			if breaker.IsOpen(target.AgentId) {
+				log.Printf("circuit OPEN for %s; asking for another peer", target.AgentId)
+				continue
+			}
+
+			peerConn, dialErr := poolDial(peerConns, target.Endpoint)
+			if dialErr != nil {
+				log.Printf("dial %s (%s) failed: %v", target.AgentId, target.Endpoint, dialErr)
+				onFailure(cpClient, breaker, from, target.AgentId, capability, 0)
+				continue
+			}
+
+			dpClient := pb.NewAgentDataPlaneClient(peerConn)
+			invCtx, invCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			start := time.Now()
+			resp, invErr := dpClient.Invoke(invCtx, &pb.InvokeRequest{
+				Capability: capability,
+				Payload:    []byte(payload),
+			})
+			invCancel()
+			durationMs := time.Since(start).Milliseconds()
+
+			if invErr != nil {
+				log.Printf("invoke %s failed: %v", target.AgentId, invErr)
+				onFailure(cpClient, breaker, from, target.AgentId, capability, durationMs)
+				continue
+			}
+
+			breaker.RecordSuccess(target.AgentId)
+			reportInvoke(cpClient, from, target.AgentId, capability, durationMs, true)
+			fmt.Printf("response from %s: %s\n", target.AgentId, string(resp.Payload))
+			return
+		}
+		log.Printf("all %d attempts exhausted", 5)
 	}
 
-	target := sel.Agent
-	log.Printf("selected target: agent=%s endpoint=%s", target.AgentId, target.Endpoint)
+	invoke()
 
-	// Dial the chosen sidecar's A2A endpoint.
-	dpConn, err := grpc.NewClient(
-		target.Endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		log.Fatalf("dial peer sidecar: %v", err)
+	if interval <= 0 {
+		return
 	}
-	defer dpConn.Close()
 
-	dpClient := pb.NewAgentDataPlaneClient(dpConn)
+	log.Printf("starting invoke loop (every %s, Ctrl+C to stop)", interval)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// Invoke the capability.
-	invCtx, invCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer invCancel()
+	for {
+		select {
+		case <-ticker.C:
+			invoke()
+		case sig := <-sigCh:
+			log.Printf("received signal %s, shutting down", sig)
+			return
+		}
+	}
+}
 
-	invokeStart := time.Now()
-	resp, err := dpClient.Invoke(invCtx, &pb.InvokeRequest{
-		Capability: capability,
-		Payload:    []byte(payload),
-	})
-	durationMs := time.Since(invokeStart).Milliseconds()
-	ok := err == nil
+// onFailure records the failure to the breaker (logging if it caused the
+// circuit to open) and fires a ReportInvoke with ok=false.
+func onFailure(cp pb.ControlPlaneClient, b *circuit.Breaker, from, peer, capability string, durationMs int64) {
+	if opened := b.RecordFailure(peer); opened {
+		log.Printf("CIRCUIT OPENED for %s (cooldown 15s)", peer)
+	}
+	reportInvoke(cp, from, peer, capability, durationMs, false)
+}
 
-	// Report the invocation to the control plane so the live UI can
-	// visualize it. Best-effort; failures here do not affect the call.
-	repCtx, repCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	_, _ = cpClient.ReportInvoke(repCtx, &pb.ReportInvokeRequest{
+// reportInvoke fires the ReportInvoke RPC; best-effort, errors ignored.
+func reportInvoke(cp pb.ControlPlaneClient, from, peer, capability string, durationMs int64, ok bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, _ = cp.ReportInvoke(ctx, &pb.ReportInvokeRequest{
 		CallerId:   from,
-		CalleeId:   target.AgentId,
+		CalleeId:   peer,
 		Capability: capability,
 		DurationMs: durationMs,
 		Ok:         ok,
 	})
-	repCancel()
+}
 
-	if err != nil {
-		log.Fatalf("Invoke: %v", err)
+// poolDial returns the existing gRPC connection for the endpoint, or
+// creates and caches one. grpc.NewClient is lazy: errors surface on the
+// first RPC call, not on the dial itself.
+func poolDial(pool map[string]*grpc.ClientConn, endpoint string) (*grpc.ClientConn, error) {
+	if conn, ok := pool[endpoint]; ok {
+		return conn, nil
 	}
-
-	fmt.Printf("response from %s: %s\n", target.AgentId, string(resp.Payload))
+	conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+	pool[endpoint] = conn
+	return conn, nil
 }
