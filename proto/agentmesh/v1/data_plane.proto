@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package agentmesh.v1;
+
+option go_package = "github.com/neontvn/agent-mesh/proto/agentmesh/v1;agentmeshv1";
+
+// AgentDataPlane is the gRPC service exposed by each agent's sidecar to
+// receive inbound agent-to-agent (A2A) calls from peer sidecars. The
+// sidecar handles transport; the local agent application handles semantics.
+service AgentDataPlane {
+    // Invoke dispatches a capability call to the local agent and returns
+    // the result.
+    rpc Invoke(InvokeRequest) returns (InvokeResponse);
+}
+
+// InvokeRequest carries a capability invocation from one agent to another.
+message InvokeRequest {
+    // The capability being invoked (e.g., "search").
+    string capability = 1;
+
+    // Opaque payload — the inputs to the capability. The local agent
+    // application determines the format.
+    bytes payload = 2;
+
+    // Per-request metadata (correlation ID, session ID, etc.).
+    map<string, string> metadata = 3;
+}
+
+// InvokeResponse carries the result of a capability invocation back to the
+// caller's sidecar.
+message InvokeResponse {
+    // Opaque result payload. The caller agent application interprets it.
+    bytes payload = 1;
+
+    // Per-response metadata.
+    map<string, string> metadata = 2;
+}
