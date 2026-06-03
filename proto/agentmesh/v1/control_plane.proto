@@ -16,6 +16,16 @@ service ControlPlane {
     // heartbeat is not received within the lease TTL, the control plane marks
     // the agent unhealthy and removes it from the active pool.
     rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+    // Discover returns all healthy agents advertising the requested
+    // capability. Used by sidecars that maintain a local routing cache.
+    rpc Discover(DiscoverRequest) returns (DiscoverResponse);
+
+    // SelectTarget returns a single agent chosen by the control plane's
+    // routing policy (round-robin in v0) from the healthy agents advertising
+    // the requested capability. Used by sidecars that defer routing to the
+    // control plane.
+    rpc SelectTarget(SelectTargetRequest) returns (SelectTargetResponse);
 }
 
 // RegisterRequest is sent by a sidecar when its local agent starts up.
@@ -74,5 +84,35 @@ enum HealthState {
     HEALTH_STATE_HEALTHY = 1;
     HEALTH_STATE_DEGRADED = 2;
     HEALTH_STATE_UNHEALTHY = 3;
+}
+
+// DiscoverRequest asks the control plane for healthy agents advertising
+// a given capability.
+message DiscoverRequest {
+    string capability = 1;
+}
+
+// DiscoverResponse returns the matching agents.
+message DiscoverResponse {
+    repeated AgentInfo agents = 1;
+}
+
+// SelectTargetRequest asks the control plane to choose a single healthy
+// agent advertising a given capability.
+message SelectTargetRequest {
+    string capability = 1;
+}
+
+// SelectTargetResponse returns the chosen agent.
+message SelectTargetResponse {
+    AgentInfo agent = 1;
+}
+
+// AgentInfo describes an agent available for routing.
+message AgentInfo {
+    string agent_id = 1;
+    repeated string capabilities = 2;
+    string endpoint = 3;
+    map<string, string> metadata = 4;
 }
 

@@ -325,6 +325,257 @@ func (x *HeartbeatResponse) GetLeaseTtlSeconds() int32 {
 	return 0
 }
 
+// DiscoverRequest asks the control plane for healthy agents advertising
+// a given capability.
+type DiscoverRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Capability    string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoverRequest) Reset() {
+	*x = DiscoverRequest{}
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoverRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoverRequest) ProtoMessage() {}
+
+func (x *DiscoverRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoverRequest.ProtoReflect.Descriptor instead.
+func (*DiscoverRequest) Descriptor() ([]byte, []int) {
+	return file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *DiscoverRequest) GetCapability() string {
+	if x != nil {
+		return x.Capability
+	}
+	return ""
+}
+
+// DiscoverResponse returns the matching agents.
+type DiscoverResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Agents        []*AgentInfo           `protobuf:"bytes,1,rep,name=agents,proto3" json:"agents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoverResponse) Reset() {
+	*x = DiscoverResponse{}
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoverResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoverResponse) ProtoMessage() {}
+
+func (x *DiscoverResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoverResponse.ProtoReflect.Descriptor instead.
+func (*DiscoverResponse) Descriptor() ([]byte, []int) {
+	return file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DiscoverResponse) GetAgents() []*AgentInfo {
+	if x != nil {
+		return x.Agents
+	}
+	return nil
+}
+
+// SelectTargetRequest asks the control plane to choose a single healthy
+// agent advertising a given capability.
+type SelectTargetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Capability    string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelectTargetRequest) Reset() {
+	*x = SelectTargetRequest{}
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelectTargetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelectTargetRequest) ProtoMessage() {}
+
+func (x *SelectTargetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelectTargetRequest.ProtoReflect.Descriptor instead.
+func (*SelectTargetRequest) Descriptor() ([]byte, []int) {
+	return file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SelectTargetRequest) GetCapability() string {
+	if x != nil {
+		return x.Capability
+	}
+	return ""
+}
+
+// SelectTargetResponse returns the chosen agent.
+type SelectTargetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Agent         *AgentInfo             `protobuf:"bytes,1,opt,name=agent,proto3" json:"agent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelectTargetResponse) Reset() {
+	*x = SelectTargetResponse{}
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelectTargetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelectTargetResponse) ProtoMessage() {}
+
+func (x *SelectTargetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelectTargetResponse.ProtoReflect.Descriptor instead.
+func (*SelectTargetResponse) Descriptor() ([]byte, []int) {
+	return file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SelectTargetResponse) GetAgent() *AgentInfo {
+	if x != nil {
+		return x.Agent
+	}
+	return nil
+}
+
+// AgentInfo describes an agent available for routing.
+type AgentInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Capabilities  []string               `protobuf:"bytes,2,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	Endpoint      string                 `protobuf:"bytes,3,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentInfo) Reset() {
+	*x = AgentInfo{}
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentInfo) ProtoMessage() {}
+
+func (x *AgentInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentInfo.ProtoReflect.Descriptor instead.
+func (*AgentInfo) Descriptor() ([]byte, []int) {
+	return file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *AgentInfo) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *AgentInfo) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+func (x *AgentInfo) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *AgentInfo) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 var File_proto_agentmesh_v1_control_plane_proto protoreflect.FileDescriptor
 
 const file_proto_agentmesh_v1_control_plane_proto_rawDesc = "" +
@@ -347,15 +598,37 @@ const file_proto_agentmesh_v1_control_plane_proto_rawDesc = "" +
 	"\x06health\x18\x03 \x01(\x0e2\x19.agentmesh.v1.HealthStateR\x06health\x12\x12\n" +
 	"\x04load\x18\x04 \x01(\x01R\x04load\"?\n" +
 	"\x11HeartbeatResponse\x12*\n" +
-	"\x11lease_ttl_seconds\x18\x01 \x01(\x05R\x0fleaseTtlSeconds*|\n" +
+	"\x11lease_ttl_seconds\x18\x01 \x01(\x05R\x0fleaseTtlSeconds\"1\n" +
+	"\x0fDiscoverRequest\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x01 \x01(\tR\n" +
+	"capability\"C\n" +
+	"\x10DiscoverResponse\x12/\n" +
+	"\x06agents\x18\x01 \x03(\v2\x17.agentmesh.v1.AgentInfoR\x06agents\"5\n" +
+	"\x13SelectTargetRequest\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x01 \x01(\tR\n" +
+	"capability\"E\n" +
+	"\x14SelectTargetResponse\x12-\n" +
+	"\x05agent\x18\x01 \x01(\v2\x17.agentmesh.v1.AgentInfoR\x05agent\"\xe6\x01\n" +
+	"\tAgentInfo\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\"\n" +
+	"\fcapabilities\x18\x02 \x03(\tR\fcapabilities\x12\x1a\n" +
+	"\bendpoint\x18\x03 \x01(\tR\bendpoint\x12A\n" +
+	"\bmetadata\x18\x04 \x03(\v2%.agentmesh.v1.AgentInfo.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*|\n" +
 	"\vHealthState\x12\x1c\n" +
 	"\x18HEALTH_STATE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14HEALTH_STATE_HEALTHY\x10\x01\x12\x19\n" +
 	"\x15HEALTH_STATE_DEGRADED\x10\x02\x12\x1a\n" +
-	"\x16HEALTH_STATE_UNHEALTHY\x10\x032\xa7\x01\n" +
+	"\x16HEALTH_STATE_UNHEALTHY\x10\x032\xc9\x02\n" +
 	"\fControlPlane\x12I\n" +
 	"\bRegister\x12\x1d.agentmesh.v1.RegisterRequest\x1a\x1e.agentmesh.v1.RegisterResponse\x12L\n" +
-	"\tHeartbeat\x12\x1e.agentmesh.v1.HeartbeatRequest\x1a\x1f.agentmesh.v1.HeartbeatResponseB>Z<github.com/neontvn/agent-mesh/proto/agentmesh/v1;agentmeshv1b\x06proto3"
+	"\tHeartbeat\x12\x1e.agentmesh.v1.HeartbeatRequest\x1a\x1f.agentmesh.v1.HeartbeatResponse\x12I\n" +
+	"\bDiscover\x12\x1d.agentmesh.v1.DiscoverRequest\x1a\x1e.agentmesh.v1.DiscoverResponse\x12U\n" +
+	"\fSelectTarget\x12!.agentmesh.v1.SelectTargetRequest\x1a\".agentmesh.v1.SelectTargetResponseB>Z<github.com/neontvn/agent-mesh/proto/agentmesh/v1;agentmeshv1b\x06proto3"
 
 var (
 	file_proto_agentmesh_v1_control_plane_proto_rawDescOnce sync.Once
@@ -370,27 +643,40 @@ func file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_agentmesh_v1_control_plane_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_agentmesh_v1_control_plane_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_proto_agentmesh_v1_control_plane_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_proto_agentmesh_v1_control_plane_proto_goTypes = []any{
-	(HealthState)(0),          // 0: agentmesh.v1.HealthState
-	(*RegisterRequest)(nil),   // 1: agentmesh.v1.RegisterRequest
-	(*RegisterResponse)(nil),  // 2: agentmesh.v1.RegisterResponse
-	(*HeartbeatRequest)(nil),  // 3: agentmesh.v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil), // 4: agentmesh.v1.HeartbeatResponse
-	nil,                       // 5: agentmesh.v1.RegisterRequest.MetadataEntry
+	(HealthState)(0),             // 0: agentmesh.v1.HealthState
+	(*RegisterRequest)(nil),      // 1: agentmesh.v1.RegisterRequest
+	(*RegisterResponse)(nil),     // 2: agentmesh.v1.RegisterResponse
+	(*HeartbeatRequest)(nil),     // 3: agentmesh.v1.HeartbeatRequest
+	(*HeartbeatResponse)(nil),    // 4: agentmesh.v1.HeartbeatResponse
+	(*DiscoverRequest)(nil),      // 5: agentmesh.v1.DiscoverRequest
+	(*DiscoverResponse)(nil),     // 6: agentmesh.v1.DiscoverResponse
+	(*SelectTargetRequest)(nil),  // 7: agentmesh.v1.SelectTargetRequest
+	(*SelectTargetResponse)(nil), // 8: agentmesh.v1.SelectTargetResponse
+	(*AgentInfo)(nil),            // 9: agentmesh.v1.AgentInfo
+	nil,                          // 10: agentmesh.v1.RegisterRequest.MetadataEntry
+	nil,                          // 11: agentmesh.v1.AgentInfo.MetadataEntry
 }
 var file_proto_agentmesh_v1_control_plane_proto_depIdxs = []int32{
-	5, // 0: agentmesh.v1.RegisterRequest.metadata:type_name -> agentmesh.v1.RegisterRequest.MetadataEntry
-	0, // 1: agentmesh.v1.HeartbeatRequest.health:type_name -> agentmesh.v1.HealthState
-	1, // 2: agentmesh.v1.ControlPlane.Register:input_type -> agentmesh.v1.RegisterRequest
-	3, // 3: agentmesh.v1.ControlPlane.Heartbeat:input_type -> agentmesh.v1.HeartbeatRequest
-	2, // 4: agentmesh.v1.ControlPlane.Register:output_type -> agentmesh.v1.RegisterResponse
-	4, // 5: agentmesh.v1.ControlPlane.Heartbeat:output_type -> agentmesh.v1.HeartbeatResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	10, // 0: agentmesh.v1.RegisterRequest.metadata:type_name -> agentmesh.v1.RegisterRequest.MetadataEntry
+	0,  // 1: agentmesh.v1.HeartbeatRequest.health:type_name -> agentmesh.v1.HealthState
+	9,  // 2: agentmesh.v1.DiscoverResponse.agents:type_name -> agentmesh.v1.AgentInfo
+	9,  // 3: agentmesh.v1.SelectTargetResponse.agent:type_name -> agentmesh.v1.AgentInfo
+	11, // 4: agentmesh.v1.AgentInfo.metadata:type_name -> agentmesh.v1.AgentInfo.MetadataEntry
+	1,  // 5: agentmesh.v1.ControlPlane.Register:input_type -> agentmesh.v1.RegisterRequest
+	3,  // 6: agentmesh.v1.ControlPlane.Heartbeat:input_type -> agentmesh.v1.HeartbeatRequest
+	5,  // 7: agentmesh.v1.ControlPlane.Discover:input_type -> agentmesh.v1.DiscoverRequest
+	7,  // 8: agentmesh.v1.ControlPlane.SelectTarget:input_type -> agentmesh.v1.SelectTargetRequest
+	2,  // 9: agentmesh.v1.ControlPlane.Register:output_type -> agentmesh.v1.RegisterResponse
+	4,  // 10: agentmesh.v1.ControlPlane.Heartbeat:output_type -> agentmesh.v1.HeartbeatResponse
+	6,  // 11: agentmesh.v1.ControlPlane.Discover:output_type -> agentmesh.v1.DiscoverResponse
+	8,  // 12: agentmesh.v1.ControlPlane.SelectTarget:output_type -> agentmesh.v1.SelectTargetResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_proto_agentmesh_v1_control_plane_proto_init() }
@@ -404,7 +690,7 @@ func file_proto_agentmesh_v1_control_plane_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_agentmesh_v1_control_plane_proto_rawDesc), len(file_proto_agentmesh_v1_control_plane_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

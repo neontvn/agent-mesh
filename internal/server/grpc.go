@@ -18,7 +18,10 @@ package server
 
 import (
 	"context"
+	"sync"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,6 +45,13 @@ type ControlPlaneServer struct {
 	// Namespace where Agent CRDs are materialized. Hardcoded to "default"
 	// for v0; will be configurable later.
 	Namespace string
+
+	// rrMu protects rrCounters from concurrent SelectTarget calls.
+	rrMu sync.Mutex
+	// rrCounters tracks the next round-robin index to return per capability.
+	// First SelectTarget call for a capability returns agents[0], next
+	// returns agents[1], wrapping at the candidate count.
+	rrCounters map[string]int
 }
 
 // Register handles a sidecar's initial registration. If the Agent CRD
@@ -124,5 +134,69 @@ func healthStateToString(h pb.HealthState) string {
 		return "unhealthy"
 	default:
 		return ""
+	}
+}
+
+// Discover returns all healthy agents advertising the requested capability.
+func (s *ControlPlaneServer) Discover(ctx context.Context, req *pb.DiscoverRequest) (*pb.DiscoverResponse, error) {
+	var list agentmeshv1.AgentList
+	if err := s.K8sClient.List(ctx, &list, client.InNamespace(s.Namespace)); err != nil {
+		return nil, err
+	}
+
+	var matches []*pb.AgentInfo
+	for i := range list.Items {
+		a := &list.Items[i]
+		if !hasCapability(a.Spec.Capabilities, req.Capability) {
+			continue
+		}
+		if a.Status.Health == "unhealthy" {
+			continue
+		}
+		matches = append(matches, agentToInfo(a))
+	}
+
+	return &pb.DiscoverResponse{Agents: matches}, nil
+}
+
+// SelectTarget returns a single healthy agent for the requested capability,
+// chosen by round-robin across the candidate set.
+func (s *ControlPlaneServer) SelectTarget(ctx context.Context, req *pb.SelectTargetRequest) (*pb.SelectTargetResponse, error) {
+	disc, err := s.Discover(ctx, &pb.DiscoverRequest{Capability: req.Capability})
+	if err != nil {
+		return nil, err
+	}
+	if len(disc.Agents) == 0 {
+		return nil, status.Errorf(codes.NotFound, "no healthy agents for capability %q", req.Capability)
+	}
+
+	s.rrMu.Lock()
+	if s.rrCounters == nil {
+		s.rrCounters = map[string]int{}
+	}
+	idx := s.rrCounters[req.Capability] % len(disc.Agents)
+	s.rrCounters[req.Capability]++
+	s.rrMu.Unlock()
+
+	return &pb.SelectTargetResponse{Agent: disc.Agents[idx]}, nil
+}
+
+// hasCapability reports whether `caps` contains `want`.
+func hasCapability(caps []string, want string) bool {
+	for _, c := range caps {
+		if c == want {
+			return true
+		}
+	}
+	return false
+}
+
+// agentToInfo converts an Agent CRD to the AgentInfo wire type.
+func agentToInfo(a *agentmeshv1.Agent) *pb.AgentInfo {
+	return &pb.AgentInfo{
+		AgentId:      a.Name,
+		Capabilities: a.Spec.Capabilities,
+		Endpoint:     a.Spec.Endpoint,
+		Metadata:     a.Spec.Metadata,
 	}
 }

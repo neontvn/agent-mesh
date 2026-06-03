@@ -19,8 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ControlPlane_Register_FullMethodName  = "/agentmesh.v1.ControlPlane/Register"
-	ControlPlane_Heartbeat_FullMethodName = "/agentmesh.v1.ControlPlane/Heartbeat"
+	ControlPlane_Register_FullMethodName     = "/agentmesh.v1.ControlPlane/Register"
+	ControlPlane_Heartbeat_FullMethodName    = "/agentmesh.v1.ControlPlane/Heartbeat"
+	ControlPlane_Discover_FullMethodName     = "/agentmesh.v1.ControlPlane/Discover"
+	ControlPlane_SelectTarget_FullMethodName = "/agentmesh.v1.ControlPlane/SelectTarget"
 )
 
 // ControlPlaneClient is the client API for ControlPlane service.
@@ -38,6 +40,14 @@ type ControlPlaneClient interface {
 	// heartbeat is not received within the lease TTL, the control plane marks
 	// the agent unhealthy and removes it from the active pool.
 	Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
+	// Discover returns all healthy agents advertising the requested
+	// capability. Used by sidecars that maintain a local routing cache.
+	Discover(ctx context.Context, in *DiscoverRequest, opts ...grpc.CallOption) (*DiscoverResponse, error)
+	// SelectTarget returns a single agent chosen by the control plane's
+	// routing policy (round-robin in v0) from the healthy agents advertising
+	// the requested capability. Used by sidecars that defer routing to the
+	// control plane.
+	SelectTarget(ctx context.Context, in *SelectTargetRequest, opts ...grpc.CallOption) (*SelectTargetResponse, error)
 }
 
 type controlPlaneClient struct {
@@ -68,6 +78,26 @@ func (c *controlPlaneClient) Heartbeat(ctx context.Context, in *HeartbeatRequest
 	return out, nil
 }
 
+func (c *controlPlaneClient) Discover(ctx context.Context, in *DiscoverRequest, opts ...grpc.CallOption) (*DiscoverResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DiscoverResponse)
+	err := c.cc.Invoke(ctx, ControlPlane_Discover_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneClient) SelectTarget(ctx context.Context, in *SelectTargetRequest, opts ...grpc.CallOption) (*SelectTargetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SelectTargetResponse)
+	err := c.cc.Invoke(ctx, ControlPlane_SelectTarget_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControlPlaneServer is the server API for ControlPlane service.
 // All implementations must embed UnimplementedControlPlaneServer
 // for forward compatibility.
@@ -83,6 +113,14 @@ type ControlPlaneServer interface {
 	// heartbeat is not received within the lease TTL, the control plane marks
 	// the agent unhealthy and removes it from the active pool.
 	Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
+	// Discover returns all healthy agents advertising the requested
+	// capability. Used by sidecars that maintain a local routing cache.
+	Discover(context.Context, *DiscoverRequest) (*DiscoverResponse, error)
+	// SelectTarget returns a single agent chosen by the control plane's
+	// routing policy (round-robin in v0) from the healthy agents advertising
+	// the requested capability. Used by sidecars that defer routing to the
+	// control plane.
+	SelectTarget(context.Context, *SelectTargetRequest) (*SelectTargetResponse, error)
 	mustEmbedUnimplementedControlPlaneServer()
 }
 
@@ -98,6 +136,12 @@ func (UnimplementedControlPlaneServer) Register(context.Context, *RegisterReques
 }
 func (UnimplementedControlPlaneServer) Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Heartbeat not implemented")
+}
+func (UnimplementedControlPlaneServer) Discover(context.Context, *DiscoverRequest) (*DiscoverResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Discover not implemented")
+}
+func (UnimplementedControlPlaneServer) SelectTarget(context.Context, *SelectTargetRequest) (*SelectTargetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SelectTarget not implemented")
 }
 func (UnimplementedControlPlaneServer) mustEmbedUnimplementedControlPlaneServer() {}
 func (UnimplementedControlPlaneServer) testEmbeddedByValue()                      {}
@@ -156,6 +200,42 @@ func _ControlPlane_Heartbeat_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ControlPlane_Discover_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DiscoverRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServer).Discover(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlane_Discover_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServer).Discover(ctx, req.(*DiscoverRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlane_SelectTarget_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SelectTargetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServer).SelectTarget(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlane_SelectTarget_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServer).SelectTarget(ctx, req.(*SelectTargetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ControlPlane_ServiceDesc is the grpc.ServiceDesc for ControlPlane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -170,6 +250,14 @@ var ControlPlane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Heartbeat",
 			Handler:    _ControlPlane_Heartbeat_Handler,
+		},
+		{
+			MethodName: "Discover",
+			Handler:    _ControlPlane_Discover_Handler,
+		},
+		{
+			MethodName: "SelectTarget",
+			Handler:    _ControlPlane_SelectTarget_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
