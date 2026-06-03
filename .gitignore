@@ -1,0 +1,36 @@
+# Binaries and build output
+bin/
+testbin/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+cover.out
+cover.html
+
+# Go workspaces
+go.work
+go.work.sum
+
+# Vendored deps (we use modules)
+vendor/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Local env / secrets
+*.env
+*.env.local
+.envrc
+
+# Kubeconfig (never commit credentials)
+kubeconfig
+*.kubeconfig
