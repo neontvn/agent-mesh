@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- agentmesh_v1_agent.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

@@ -1,36 +1,30 @@
-# Binaries and build output
-bin/
-testbin/
+# Binaries for programs and plugins
 *.exe
+*.exe~
 *.dll
 *.so
 *.dylib
+bin/*
+Dockerfile.cross
+
+# Test binary, built with `go test -c`
 *.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-cover.out
-cover.html
 
-# Go workspaces
+# Go workspace file
 go.work
-go.work.sum
 
-# Vendored deps (we use modules)
-vendor/
+# Kubernetes Generated files - skip generated files, except for vendored files
+!vendor/**/zz_generated.*
 
-# IDE / editor
-.idea/
-.vscode/
+# editor and IDE paraphernalia
+.idea
+.vscode
 *.swp
 *.swo
+*~
 
-# macOS
-.DS_Store
-
-# Local env / secrets
-*.env
-*.env.local
-.envrc
-
-# Kubeconfig (never commit credentials)
-kubeconfig
+# Kubeconfig might contain secrets
 *.kubeconfig

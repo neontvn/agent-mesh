@@ -1,0 +1,13 @@
+apiVersion: agentmesh.agentmesh.io/v1
+kind: Agent
+metadata:
+  name: research-agent-1
+  namespace: default
+spec:
+  capabilities:
+    - search
+    - summarize
+  endpoint: 10.0.4.21:9090
+  metadata:
+    framework: langgraph
+    version: v1.2.3

@@ -1,0 +1,9 @@
+apiVersion: agentmesh.agentmesh.io/v1
+kind: Agent
+metadata:
+  labels:
+    app.kubernetes.io/name: agentmesh
+    app.kubernetes.io/managed-by: kustomize
+  name: agent-sample
+spec:
+  # TODO(user): Add fields here

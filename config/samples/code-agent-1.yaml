@@ -1,0 +1,13 @@
+apiVersion: agentmesh.agentmesh.io/v1
+kind: Agent
+metadata:
+  name: code-agent-1
+  namespace: default
+spec:
+  capabilities:
+    - code
+    - debug
+  endpoint: 10.0.4.22:9090
+  metadata:
+    framework: autogen
+    version: v0.4.1
