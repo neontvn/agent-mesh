@@ -28,3 +28,19 @@ go.work
 
 # Kubeconfig might contain secrets
 *.kubeconfig
+
+# Python artifacts (research-pipeline example)
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Local environment files — must never be committed (may contain API keys)
+.env
+*.env
+!.env.example
+
+# Research-pipeline runtime artifacts
+examples/research-pipeline/logs/
+examples/research-pipeline/pids/

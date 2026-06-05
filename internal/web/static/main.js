@@ -62,10 +62,23 @@ function handleEvent(event) {
             break;
 
         case 'agent_heartbeat': {
-            const a = agents.get(d.agent_id);
-            if (a) {
+            // Auto-bootstrap from heartbeats so clients that connect after
+            // the register event still pick up existing agents.
+            let a = agents.get(d.agent_id);
+            if (!a) {
+                a = {
+                    id: d.agent_id,
+                    capabilities: d.capabilities || [],
+                    endpoint: d.endpoint || '',
+                    health: d.health || 'healthy',
+                    lastSeen: ts,
+                };
+                agents.set(d.agent_id, a);
+            } else {
                 a.lastSeen = ts;
                 if (d.health) a.health = d.health;
+                if (d.capabilities && d.capabilities.length) a.capabilities = d.capabilities;
+                if (d.endpoint) a.endpoint = d.endpoint;
             }
             break;
         }
@@ -83,6 +96,12 @@ function handleEvent(event) {
             recentInvokes.push(ts.getTime());
             timelineInvokes.push(ts.getTime());
             if (d.caller_id && d.callee_id) {
+                // Auto-create spheres for callers/callees the UI hasn't
+                // seen registered (e.g., the planner, which acts as a
+                // mesh client without registering itself).
+                ensureAgent(d.caller_id);
+                ensureAgent(d.callee_id);
+                syncAgents(Array.from(agents.values()));
                 animateInvoke(d.caller_id, d.callee_id, d.ok !== false);
             }
             break;
@@ -136,6 +155,21 @@ function escapeHTML(s) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+// ensureAgent ensures an entry exists in the agents map for the given id.
+// Used when we learn about an agent through invoke events (caller side)
+// rather than the register/heartbeat stream.
+function ensureAgent(id) {
+    if (!agents.has(id)) {
+        agents.set(id, {
+            id,
+            capabilities: [],
+            endpoint: '',
+            health: 'unknown',
+            lastSeen: new Date(),
+        });
+    }
 }
 
 function updateEmptyState() {

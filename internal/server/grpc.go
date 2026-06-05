@@ -132,9 +132,14 @@ func (s *ControlPlaneServer) Heartbeat(ctx context.Context, req *pb.HeartbeatReq
 	}
 
 	if s.Bus != nil {
+		// Include the full spec on every heartbeat so a UI client that
+		// connects after the agent registered can still bootstrap its
+		// view of the mesh from the heartbeat stream alone.
 		s.Bus.Publish(web.EventAgentHeartbeat, map[string]interface{}{
-			"agent_id": req.AgentId,
-			"health":   agent.Status.Health,
+			"agent_id":     req.AgentId,
+			"health":       agent.Status.Health,
+			"capabilities": agent.Spec.Capabilities,
+			"endpoint":     agent.Spec.Endpoint,
 		})
 	}
 

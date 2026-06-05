@@ -17,16 +17,19 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,6 +45,7 @@ import (
 	agentmeshv1 "github.com/neontvn/agent-mesh/api/v1"
 	"github.com/neontvn/agent-mesh/internal/controller"
 	"github.com/neontvn/agent-mesh/internal/server"
+	"github.com/neontvn/agent-mesh/internal/tracing"
 	"github.com/neontvn/agent-mesh/internal/web"
 	pb "github.com/neontvn/agent-mesh/proto/agentmesh/v1"
 	// +kubebuilder:scaffold:imports
@@ -69,6 +73,7 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	var otlpEndpoint string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -86,6 +91,8 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.StringVar(&otlpEndpoint, "otlp-endpoint", "localhost:4317",
+		"OTLP gRPC endpoint to export traces to")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -93,6 +100,18 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	// Initialize OpenTelemetry. Shutdown flushes pending spans on exit.
+	shutdownTracer, err := tracing.Init(context.Background(), "agentmesh-control-plane", otlpEndpoint)
+	if err != nil {
+		setupLog.Error(err, "Failed to initialize tracing")
+		os.Exit(1)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdownTracer(ctx)
+	}()
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -217,7 +236,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		grpcServer := grpc.NewServer()
+		grpcServer := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
 		pb.RegisterControlPlaneServer(grpcServer, &server.ControlPlaneServer{
 			K8sClient: mgr.GetClient(),
 			Namespace: "default",
