@@ -300,4 +300,88 @@ Restated for clarity; full justification in §3.2:
 
 ---
 
-*Sections 5 onward to be drafted.*
+## 5. Protocol Pivot: A2A Adoption
+
+### 5.1 Context and Motivation
+
+After completing Phase 1 (M1–M5) and the research-pipeline example, the project's sidecar-to-sidecar wire protocol is a custom Protocol Buffers definition under `proto/agentmesh/v1/`. That definition was sufficient to demonstrate mesh primitives — capability discovery, routing, observability — but it does not align with the emerging industry standard for agent-to-agent communication.
+
+The **Agent-to-Agent (A2A) Protocol**, published by Google in April 2025 with support from Salesforce, Atlassian, Cohere, MongoDB, and others, has rapidly become the open standard for inter-agent communication. Adopting A2A re-positions AgentMesh from "a service mesh repurposed for agent traffic" to "an A2A-compliant agentic mesh" — i.e., a mesh whose wire protocol itself encodes agent semantics, not merely the workloads on top.
+
+### 5.2 What changes
+
+The wire protocol on the sidecar-to-sidecar path is replaced. Specifically:
+
+| Current (custom proto) | After A2A retrofit |
+|---|---|
+| `InvokeRequest` / `InvokeResponse` (unary) | A2A `Task` with full lifecycle (`created` → `working` → `input-required` → `completed` / `failed` / `canceled`) |
+| Capability strings (e.g., `"summarize"`) | A2A `Skill` declarations with input/output JSON Schemas |
+| Capability-based discovery via registry lookup | Agent Card discovery via `/.well-known/agent.json` |
+| Synchronous unary RPC | Multi-turn `Message` exchange within a Task; Server-Sent Events streaming for status updates |
+| Untyped opaque `bytes` payload | Typed `Artifact` outputs as first-class results |
+| gRPC + Protocol Buffers | HTTPS + JSON-RPC 2.0 |
+
+### 5.3 What stays the same
+
+The mesh's internal architecture is unchanged:
+
+- Go control plane: agent registry, discovery service, routing engine, consensus store (Kubernetes API)
+- Kubernetes integration: `Agent` CRD, controller, mutating admission webhook for sidecar injection
+- Sidecar architecture and per-peer circuit breaker (`internal/circuit/`)
+- OpenTelemetry trace propagation (control-plane comms remain gRPC; sidecar emits A2A spans)
+- Heartbeat and lease-eviction reconciler logic
+- 3D visualization framework, WebSocket event bus, Jaeger backend
+
+The **control-plane ↔ sidecar** communication remains gRPC — the A2A protocol applies only to **sidecar ↔ sidecar** traffic, which is its actual domain.
+
+### 5.4 Scope cuts deferred to later phases
+
+The following are explicitly out of scope for this retrofit:
+
+- **A2A authentication** (Bearer / API key / OAuth): mesh handles trust internally for v1; full A2A auth lands with the Phase 2 security layer.
+- **A2A push notifications**: SSE streaming covers the immediate needs.
+- **Durable task state**: Task state is held in sidecar memory for v1; durable execution (Temporal-style) is its own phase.
+- **Multi-tenancy**: out of scope.
+
+### 5.5 Deprecation strategy
+
+During the retrofit:
+
+1. The legacy `proto/agentmesh/v1/data_plane.proto` paths remain in the codebase but become unused as workers and sidecars migrate to A2A.
+2. After all six workers (research-pipeline + demo agents) are verified end-to-end on A2A, the legacy paths are removed in a single dedicated commit.
+3. `master` is unaffected during the retrofit; all work happens on the `feat/a2a-protocol` branch and merges to `master` only after Phase 8 (end-to-end demo verification) passes.
+
+### 5.6 Demo scenario locked in
+
+The A2A retrofit ships with the **Interview Guide Generator** demo (see ADR in `docs/adr/` once drafted):
+
+- 4 agents: Persona Builder, Question Designer, Critic, Compiler
+- 2 `input-required` moments (persona selection, question approval)
+- Parallel Critic + Compiler stage
+- Markdown interview guide artifact as final output
+
+This scenario exercises every A2A feature that distinguishes the protocol from a generic RPC mesh: Agent Cards, Task lifecycle, multi-turn Messages, `input-required` state, streaming updates, typed Artifacts.
+
+### 5.7 Spec version target
+
+The retrofit targets the A2A specification published at `https://github.com/google-a2a/A2A`. The exact spec commit being followed is pinned in `internal/a2a/SPEC_VERSION` so the implementation has a stable reference point.
+
+### 5.8 Phased plan
+
+| Phase | Deliverable | Effort |
+|---|---|---|
+| 0 | Branch + spec pin + this section of DESIGN.md | ~1 day |
+| 1 | Go wire types in `internal/a2a/` (AgentCard, Task, Skill, Message, Artifact, JSON-RPC envelope) | ~2 days |
+| 2 | Sidecar A2A inbound endpoints (`/.well-known/agent.json`, `/a2a/tasks`, SSE stream) | ~2–3 days |
+| 3 | Sidecar A2A outbound client | ~2 days |
+| 4 | Control plane updates (CRD spec carries Agent Card, Discovery serves Agent Cards) | ~2 days |
+| 5 | Python A2A client library | ~1 day |
+| 6 | Convert existing workers + build the 4 Interview-Guide demo agents | ~3–4 days |
+| 7 | UI updates: Task lifecycle visualization, input-required modal, sidebar task list | ~2–3 days |
+| 8 | Demo polish + recorded video | ~1–2 days |
+
+Total: ~15–18 focused work-days, mapped over a ~3–4 week calendar.
+
+---
+
+*Sections 6 onward to be drafted.*

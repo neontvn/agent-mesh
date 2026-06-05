@@ -1,0 +1,25 @@
+A2A Protocol Specification — pinned reference
+================================================
+
+Source:        https://github.com/google-a2a/A2A
+Spec status:   v0.2 (April 2025 initial release)
+Pin policy:    This implementation tracks the spec at the commit referenced
+               below. The pin is updated only between phase boundaries, never
+               mid-phase, so behaviour stays stable while a phase is in flight.
+
+Pinned commit: TBD — to be filled in at the start of Phase 1 once the wire
+               types are first transcribed into Go. Until then, treat the
+               most-recent spec version on the main branch of google-a2a/A2A
+               as the reference.
+
+Scope of compliance for AgentMesh:
+  - Agent Card discovery (/.well-known/agent.json)
+  - Task lifecycle: created, working, input-required, completed, failed, canceled
+  - Message exchange within a Task (multi-turn)
+  - Artifact outputs (typed)
+  - SSE streaming for task status updates
+
+Out of scope for the v1 retrofit (see DESIGN.md §5.4):
+  - A2A authentication (Bearer, API key, OAuth) — Phase 2 security layer
+  - Push notifications via webhook — SSE is sufficient
+  - Durable task state persistence — sidecar memory only
