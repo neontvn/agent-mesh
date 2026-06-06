@@ -14,31 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Command sidecar runs the AgentMesh agent sidecar. It parses flags, then hands
+// off to internal/sidecar. The data-plane transport is pluggable; this wires in
+// the gRPC implementation (internal/dataplane/grpcdp).
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
-	"fmt"
-	"io"
 	"log"
-	"net"
-	"net/http"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/reflection"
-
-	"github.com/neontvn/agent-mesh/internal/circuit"
-	"github.com/neontvn/agent-mesh/internal/tracing"
-	pb "github.com/neontvn/agent-mesh/proto/agentmesh/v1"
+	"github.com/neontvn/agent-mesh/internal/dataplane/grpcdp"
+	"github.com/neontvn/agent-mesh/internal/sidecar"
 )
 
 func main() {
@@ -46,17 +35,17 @@ func main() {
 		controlPlaneAddr = flag.String("control-plane-addr", "localhost:9091",
 			"address of the control plane gRPC server")
 		agentID = flag.String("agent-id", "",
-			"unique identifier for this agent (required)")
+			"unique identifier for this agent (required in server mode)")
 		capabilities = flag.String("capabilities", "",
-			"comma-separated list of capabilities (e.g., search,summarize) (required)")
+			"comma-separated list of capabilities (e.g., search,summarize)")
 		endpoint = flag.String("endpoint", "",
-			"network endpoint where this agent receives A2A traffic (required)")
+			"network endpoint where this agent receives A2A traffic")
 		metadataStr = flag.String("metadata", "",
 			"comma-separated key=value pairs (e.g., framework=langgraph,version=v1)")
 		heartbeatInterval = flag.Duration("heartbeat-interval", 10*time.Second,
 			"how often the sidecar sends Heartbeat (must be less than the lease TTL)")
 		listenAddr = flag.String("listen-addr", ":9090",
-			"address the sidecar's A2A gRPC server listens on")
+			"address the sidecar's data-plane server listens on")
 		invokeCapability = flag.String("invoke-capability", "",
 			"if set, run in client mode: call this capability on a peer and exit")
 		invokePayload = flag.String("invoke-payload", "",
@@ -68,126 +57,53 @@ func main() {
 		otlpEndpoint = flag.String("otlp-endpoint", "localhost:4317",
 			"OTLP gRPC endpoint to export traces to")
 		forwardToURL = flag.String("forward-to-url", "",
-			"HTTP endpoint to forward inbound A2A Invoke calls to (required in server mode)")
+			"HTTP endpoint to forward inbound calls to (required in server mode)")
 	)
 	flag.Parse()
 
-	// Initialize OpenTelemetry. Service name varies by mode so the sidecar
-	// shows up cleanly in Jaeger.
-	svcName := "sidecar-cli"
-	if *agentID != "" {
-		svcName = "sidecar-" + *agentID
-	}
-	shutdownTracer, err := tracing.Init(context.Background(), svcName, *otlpEndpoint)
-	if err != nil {
-		log.Fatalf("tracing init: %v", err)
-	}
-	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = shutdownTracer(ctx)
-	}()
+	ctx := context.Background()
 
-	// Client mode: ask the control plane to pick a target for the given
-	// capability, dial it directly, invoke, print the response, exit.
+	// Client mode: invoke a capability on a peer via the gRPC outbound transport.
 	if *invokeCapability != "" {
-		runClient(*controlPlaneAddr, *invokeCapability, *invokePayload, *invokeFrom, *invokeInterval)
+		out := grpcdp.NewClient()
+		defer out.Close()
+		if err := sidecar.RunClient(ctx, sidecar.ClientConfig{
+			ControlPlaneAddr: *controlPlaneAddr,
+			Capability:       *invokeCapability,
+			Payload:          *invokePayload,
+			From:             *invokeFrom,
+			Interval:         *invokeInterval,
+			OTLPEndpoint:     *otlpEndpoint,
+		}, out); err != nil {
+			log.Fatal(err)
+		}
 		return
 	}
 
-	// Server mode requires identity flags AND a forward URL — the sidecar
-	// is pure transport, so there must be a local agent to dispatch to.
+	// Server mode requires identity flags AND a forward URL — the sidecar is
+	// pure transport, so there must be a local agent to dispatch to.
 	if *agentID == "" || *capabilities == "" || *endpoint == "" || *forwardToURL == "" {
 		log.Fatal("--agent-id, --capabilities, --endpoint, and --forward-to-url are required (server mode)")
 	}
 
-	capList := splitAndTrim(*capabilities)
-	metadata := parseMetadata(*metadataStr)
-
-	log.Printf("connecting to control plane at %s", *controlPlaneAddr)
-	conn, err := grpc.NewClient(
-		*controlPlaneAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
-	)
-	if err != nil {
-		log.Fatalf("failed to dial control plane: %v", err)
+	cfg := sidecar.Config{
+		ControlPlaneAddr:  *controlPlaneAddr,
+		AgentID:           *agentID,
+		Capabilities:      splitAndTrim(*capabilities),
+		Endpoint:          *endpoint,
+		Metadata:          parseMetadata(*metadataStr),
+		HeartbeatInterval: *heartbeatInterval,
+		ListenAddr:        *listenAddr,
+		OTLPEndpoint:      *otlpEndpoint,
+		ForwardToURL:      *forwardToURL,
 	}
-	defer conn.Close()
-
-	client := pb.NewControlPlaneClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	log.Printf("registering agent %q with capabilities %v", *agentID, capList)
-	resp, err := client.Register(ctx, &pb.RegisterRequest{
-		AgentId:      *agentID,
-		Capabilities: capList,
-		Endpoint:     *endpoint,
-		Metadata:     metadata,
-	})
-	if err != nil {
-		log.Fatalf("Register failed: %v", err)
-	}
-
-	fmt.Printf("Registered. lease_id=%s ttl=%ds\n", resp.LeaseId, resp.LeaseTtlSeconds)
-
-	// Start the A2A gRPC server so peer sidecars can invoke capabilities
-	// on this agent. Runs in a goroutine alongside the heartbeat loop.
-	go func() {
-		lis, err := net.Listen("tcp", *listenAddr)
-		if err != nil {
-			log.Fatalf("failed to listen on %s: %v", *listenAddr, err)
-		}
-
-		grpcServer := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
-		pb.RegisterAgentDataPlaneServer(grpcServer, &dataPlaneServer{
-			forwardURL: *forwardToURL,
-			httpClient: &http.Client{Timeout: 30 * time.Second},
-		})
-		reflection.Register(grpcServer)
-
-		log.Printf("listening for A2A calls on %s", *listenAddr)
-		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatalf("A2A server crashed: %v", err)
-		}
-	}()
-
-	// Wire up signal handling so Ctrl+C exits cleanly instead of leaving
-	// the heartbeat goroutine running.
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	ticker := time.NewTicker(*heartbeatInterval)
-	defer ticker.Stop()
-
-	log.Printf("starting heartbeat loop (every %s)", *heartbeatInterval)
-	for {
-		select {
-		case <-ticker.C:
-			hbCtx, hbCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_, err := client.Heartbeat(hbCtx, &pb.HeartbeatRequest{
-				AgentId: *agentID,
-				LeaseId: resp.LeaseId,
-				Health:  pb.HealthState_HEALTH_STATE_HEALTHY,
-				Load:    0.0,
-			})
-			hbCancel()
-			if err != nil {
-				log.Printf("heartbeat failed: %v", err)
-			} else {
-				log.Printf("heartbeat ok")
-			}
-		case sig := <-sigCh:
-			log.Printf("received signal %s, shutting down", sig)
-			return
-		}
+	if err := sidecar.Run(ctx, cfg, grpcdp.NewServer()); err != nil {
+		log.Fatal(err)
 	}
 }
 
-// splitAndTrim splits a comma-separated string and trims whitespace from each
-// element. Empty input returns nil.
+// splitAndTrim splits a comma-separated string and trims each element. Empty
+// input returns nil.
 func splitAndTrim(s string) []string {
 	if s == "" {
 		return nil
@@ -214,208 +130,4 @@ func parseMetadata(s string) map[string]string {
 		m[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
 	}
 	return m
-}
-
-// dataPlaneServer implements the AgentDataPlane gRPC service. The sidecar
-// is pure transport: it forwards every inbound Invoke as an HTTP POST to
-// the local agent application identified by forwardURL.
-//
-// HTTP forwarding contract:
-//   - Method: POST
-//   - URL:    forwardURL
-//   - Headers:
-//     Content-Type: application/json
-//     X-AgentMesh-Capability: <capability>
-//     X-AgentMesh-Meta-<k>:   <v>          (one per metadata pair)
-//   - Body:        the gRPC payload, passed through unchanged
-//   - Response:    HTTP 200 with body → becomes the gRPC response payload
-//     any non-200 status is surfaced as an error to the caller
-type dataPlaneServer struct {
-	pb.UnimplementedAgentDataPlaneServer
-
-	forwardURL string
-	httpClient *http.Client
-}
-
-// Invoke handles an inbound A2A capability call by forwarding it to the
-// local agent over HTTP. The agent's response becomes the gRPC response.
-func (d *dataPlaneServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb.InvokeResponse, error) {
-	log.Printf("received Invoke: capability=%s payload=%d bytes -> POST %s",
-		req.Capability, len(req.Payload), d.forwardURL)
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, d.forwardURL, bytes.NewReader(req.Payload))
-	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("X-AgentMesh-Capability", req.Capability)
-	for k, v := range req.Metadata {
-		httpReq.Header.Set("X-AgentMesh-Meta-"+k, v)
-	}
-
-	resp, err := d.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("forward to %s: %w", d.forwardURL, err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read agent response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("agent returned HTTP %d: %s", resp.StatusCode, string(body))
-	}
-
-	return &pb.InvokeResponse{Payload: body}, nil
-}
-
-// runClient runs the sidecar in outbound-client mode. It asks the control
-// plane for a target advertising the given capability, dials the chosen
-// peer, calls Invoke, and reports the outcome to the control plane.
-//
-// A per-peer circuit breaker (3 consecutive failures -> opens for 15s)
-// protects against repeatedly dispatching to a dead peer. When a peer's
-// circuit is open, runClient re-asks SelectTarget to get a different
-// candidate, up to maxAttempts per invocation.
-//
-// If interval > 0, the invocation repeats at that cadence until Ctrl+C;
-// breaker state and peer connections persist across iterations.
-func runClient(controlPlaneAddr, capability, payload, from string, interval time.Duration) {
-	cpConn, err := grpc.NewClient(
-		controlPlaneAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
-	)
-	if err != nil {
-		log.Fatalf("dial control plane: %v", err)
-	}
-	defer cpConn.Close()
-
-	cpClient := pb.NewControlPlaneClient(cpConn)
-
-	// Per-peer breaker: open after 3 consecutive failures; stay open for 15s.
-	breaker := circuit.New(3, 15*time.Second)
-
-	// Persistent connection pool keyed by endpoint, so we don't redial on
-	// every invocation in loop mode.
-	peerConns := map[string]*grpc.ClientConn{}
-	defer func() {
-		for _, c := range peerConns {
-			_ = c.Close()
-		}
-	}()
-
-	invoke := func() {
-		const maxAttempts = 5
-		for attempt := 0; attempt < maxAttempts; attempt++ {
-			selCtx, selCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			sel, selErr := cpClient.SelectTarget(selCtx, &pb.SelectTargetRequest{
-				Capability: capability,
-			})
-			selCancel()
-			if selErr != nil {
-				log.Printf("SelectTarget: %v", selErr)
-				return
-			}
-			target := sel.Agent
-
-			if breaker.IsOpen(target.AgentId) {
-				log.Printf("circuit OPEN for %s; asking for another peer", target.AgentId)
-				continue
-			}
-
-			peerConn, dialErr := poolDial(peerConns, target.Endpoint)
-			if dialErr != nil {
-				log.Printf("dial %s (%s) failed: %v", target.AgentId, target.Endpoint, dialErr)
-				onFailure(cpClient, breaker, from, target.AgentId, capability, 0)
-				continue
-			}
-
-			dpClient := pb.NewAgentDataPlaneClient(peerConn)
-			invCtx, invCancel := context.WithTimeout(context.Background(), 10*time.Second)
-			start := time.Now()
-			resp, invErr := dpClient.Invoke(invCtx, &pb.InvokeRequest{
-				Capability: capability,
-				Payload:    []byte(payload),
-			})
-			invCancel()
-			durationMs := time.Since(start).Milliseconds()
-
-			if invErr != nil {
-				log.Printf("invoke %s failed: %v", target.AgentId, invErr)
-				onFailure(cpClient, breaker, from, target.AgentId, capability, durationMs)
-				continue
-			}
-
-			breaker.RecordSuccess(target.AgentId)
-			reportInvoke(cpClient, from, target.AgentId, capability, durationMs, true)
-			fmt.Printf("response from %s: %s\n", target.AgentId, string(resp.Payload))
-			return
-		}
-		log.Printf("all %d attempts exhausted", 5)
-	}
-
-	invoke()
-
-	if interval <= 0 {
-		return
-	}
-
-	log.Printf("starting invoke loop (every %s, Ctrl+C to stop)", interval)
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	for {
-		select {
-		case <-ticker.C:
-			invoke()
-		case sig := <-sigCh:
-			log.Printf("received signal %s, shutting down", sig)
-			return
-		}
-	}
-}
-
-// onFailure records the failure to the breaker (logging if it caused the
-// circuit to open) and fires a ReportInvoke with ok=false.
-func onFailure(cp pb.ControlPlaneClient, b *circuit.Breaker, from, peer, capability string, durationMs int64) {
-	if opened := b.RecordFailure(peer); opened {
-		log.Printf("CIRCUIT OPENED for %s (cooldown 15s)", peer)
-	}
-	reportInvoke(cp, from, peer, capability, durationMs, false)
-}
-
-// reportInvoke fires the ReportInvoke RPC; best-effort, errors ignored.
-func reportInvoke(cp pb.ControlPlaneClient, from, peer, capability string, durationMs int64, ok bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_, _ = cp.ReportInvoke(ctx, &pb.ReportInvokeRequest{
-		CallerId:   from,
-		CalleeId:   peer,
-		Capability: capability,
-		DurationMs: durationMs,
-		Ok:         ok,
-	})
-}
-
-// poolDial returns the existing gRPC connection for the endpoint, or
-// creates and caches one. grpc.NewClient is lazy: errors surface on the
-// first RPC call, not on the dial itself.
-func poolDial(pool map[string]*grpc.ClientConn, endpoint string) (*grpc.ClientConn, error) {
-	if conn, ok := pool[endpoint]; ok {
-		return conn, nil
-	}
-	conn, err := grpc.NewClient(
-		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
-	)
-	if err != nil {
-		return nil, err
-	}
-	pool[endpoint] = conn
-	return conn, nil
 }
