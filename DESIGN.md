@@ -306,7 +306,7 @@ Restated for clarity; full justification in §3.2:
 
 After completing Phase 1 (M1–M5) and the research-pipeline example, the project's sidecar-to-sidecar wire protocol is a custom Protocol Buffers definition under `proto/agentmesh/v1/`. That definition was sufficient to demonstrate mesh primitives — capability discovery, routing, observability — but it does not align with the emerging industry standard for agent-to-agent communication.
 
-The **Agent-to-Agent (A2A) Protocol**, published by Google in April 2025 with support from Salesforce, Atlassian, Cohere, MongoDB, and others, has rapidly become the open standard for inter-agent communication. Adopting A2A re-positions AgentMesh from "a service mesh repurposed for agent traffic" to "an A2A-compliant agentic mesh" — i.e., a mesh whose wire protocol itself encodes agent semantics, not merely the workloads on top.
+The **Agent-to-Agent (A2A) Protocol**, originally published by Google in April 2025 and since donated to and governed by **The Linux Foundation**, has rapidly become the open standard for inter-agent communication. It reached its first stable major release (**v1.0.0**, March 2026; current stable **v1.0.1**, May 2026) and now ships official SDKs in five languages — Python, JavaScript, Java, C#/.NET, and Go. Adopting A2A re-positions AgentMesh from "a service mesh repurposed for agent traffic" to "an A2A-compliant agentic mesh" — i.e., a mesh whose wire protocol itself encodes agent semantics, not merely the workloads on top.
 
 ### 5.2 What changes
 
@@ -338,7 +338,7 @@ The **control-plane ↔ sidecar** communication remains gRPC — the A2A protoco
 
 The following are explicitly out of scope for this retrofit:
 
-- **A2A authentication** (Bearer / API key / OAuth): mesh handles trust internally for v1; full A2A auth lands with the Phase 2 security layer.
+- **A2A authentication and transport security** (Bearer / API key / OAuth, and the mTLS support added in spec v0.3.0): mesh handles trust internally for v1; full A2A auth lands with the Phase 2 security layer.
 - **A2A push notifications**: SSE streaming covers the immediate needs.
 - **Durable task state**: Task state is held in sidecar memory for v1; durable execution (Temporal-style) is its own phase.
 - **Multi-tenancy**: out of scope.
@@ -364,7 +364,7 @@ This scenario exercises every A2A feature that distinguishes the protocol from a
 
 ### 5.7 Spec version target
 
-The retrofit targets the A2A specification published at `https://github.com/google-a2a/A2A`. The exact spec commit being followed is pinned in `internal/a2a/SPEC_VERSION` so the implementation has a stable reference point.
+The retrofit targets the A2A specification at its canonical home, `https://github.com/a2aproject/A2A` (docs at `https://a2a-protocol.org`), pinned to **v1.0.1**. The exact version/commit being followed is recorded in `internal/a2a/SPEC_VERSION` so the implementation has a stable reference point. Note the repository moved from the original `github.com/google-a2a/A2A` to `github.com/a2aproject/A2A` under Linux Foundation governance, and v1.0.0 introduced breaking changes relative to the 0.x preview line — so the implementation should follow v1.0.x, not the April 2025 preview. An official Go SDK under the same org may be consulted as a reference.
 
 ### 5.8 Phased plan
 

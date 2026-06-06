@@ -1,16 +1,24 @@
 A2A Protocol Specification — pinned reference
 ================================================
 
-Source:        https://github.com/google-a2a/A2A
-Spec status:   v0.2 (April 2025 initial release)
-Pin policy:    This implementation tracks the spec at the commit referenced
+Source:        https://github.com/a2aproject/A2A
+Docs:          https://a2a-protocol.org
+Governance:    The Linux Foundation (originally developed by Google, donated
+               to the LF Agentic AI ecosystem). The repository moved from
+               github.com/google-a2a/A2A to github.com/a2aproject/A2A.
+Spec status:   v1.0.1 (released 2026-05-28). v1.0.0 (2026-03-12) was the first
+               stable major release and introduced breaking changes vs. the
+               0.x preview line (spec refactor, standardized enum formats).
+Pin policy:    This implementation tracks the spec at the version referenced
                below. The pin is updated only between phase boundaries, never
                mid-phase, so behaviour stays stable while a phase is in flight.
 
-Pinned commit: TBD — to be filled in at the start of Phase 1 once the wire
-               types are first transcribed into Go. Until then, treat the
-               most-recent spec version on the main branch of google-a2a/A2A
-               as the reference.
+Pinned version: v1.0.1
+Pinned commit:  TBD — fill in the exact tag/commit SHA at the start of Phase 1
+                once the wire types are first transcribed into Go.
+
+Reference SDK:  An official Go SDK now exists under the a2aproject org and may
+                be consulted as a reference implementation for the wire types.
 
 Scope of compliance for AgentMesh:
   - Agent Card discovery (/.well-known/agent.json)
@@ -21,5 +29,6 @@ Scope of compliance for AgentMesh:
 
 Out of scope for the v1 retrofit (see DESIGN.md §5.4):
   - A2A authentication (Bearer, API key, OAuth) — Phase 2 security layer
+  - mTLS (added to the spec in v0.3.0) — Phase 2 security layer
   - Push notifications via webhook — SSE is sufficient
   - Durable task state persistence — sidecar memory only
