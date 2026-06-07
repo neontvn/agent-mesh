@@ -10,21 +10,33 @@ html, body {
     -webkit-font-smoothing: antialiased;
 }
 
+:root { --es-height: 240px; }
+
 #app {
     display: grid;
     grid-template-columns: 300px 1fr;
-    height: calc(100vh - 64px - 240px);
+    height: calc(100vh - 64px - var(--es-height));
 }
 
 /* ===================== Live event stream ===================== */
 
 #event-stream {
-    height: 240px;
+    height: var(--es-height);
     display: flex;
     flex-direction: column;
     background: #060c1c;
-    border-top: 1px solid rgba(70, 130, 255, 0.15);
+    position: relative;
 }
+
+.es-resize {
+    flex: 0 0 6px;
+    cursor: row-resize;
+    border-top: 1px solid rgba(70, 130, 255, 0.18);
+    background: transparent;
+    transition: background 0.15s ease;
+}
+.es-resize:hover,
+.es-resize.dragging { background: rgba(92, 213, 251, 0.3); }
 
 .es-header {
     display: flex;

@@ -305,6 +305,38 @@ function exportEvents() {
     URL.revokeObjectURL(url);
 }
 
+// Drag the handle at the top of the panel to resize it. The 3D viewport
+// re-fits because scene.js listens for window resize.
+function wireResize() {
+    const handle = document.getElementById('es-resize');
+    if (!handle) return;
+    let dragging = false;
+
+    const apply = (clientY) => {
+        const footer = 64;
+        let h = (window.innerHeight - footer) - clientY;
+        h = Math.max(120, Math.min(h, Math.round(window.innerHeight * 0.7)));
+        document.documentElement.style.setProperty('--es-height', `${h}px`);
+        window.dispatchEvent(new Event('resize'));
+    };
+
+    handle.addEventListener('mousedown', (e) => {
+        dragging = true;
+        handle.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+    window.addEventListener('mousemove', (e) => {
+        if (dragging) apply(e.clientY);
+    });
+    window.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        handle.classList.remove('dragging');
+        document.body.style.userSelect = '';
+    });
+}
+
 function wireStreamControls() {
     const pauseBtn = document.getElementById('es-pause');
     const exportBtn = document.getElementById('es-export');
@@ -365,6 +397,7 @@ function drawTimeline() {
 
 initScene(document.getElementById('viewport'));
 wireStreamControls();
+wireResize();
 connect();
 
 // Periodic UI tick: refresh relative times, stats, timeline.
