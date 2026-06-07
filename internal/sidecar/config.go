@@ -19,6 +19,10 @@ type Config struct {
 	OTLPEndpoint      string
 	ForwardToURL      string
 
+	// MeshAPIAddr is the loopback address for the outbound mesh API the local
+	// agent uses to call other agents (POST /mesh/invoke). Empty disables it.
+	MeshAPIAddr string
+
 	// AgentCardJSON is the agent's A2A AgentCard as canonical JSON, sent to the
 	// control plane at registration. Empty when not running the A2A data plane.
 	AgentCardJSON string

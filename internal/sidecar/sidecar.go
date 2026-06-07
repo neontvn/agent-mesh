@@ -2,6 +2,7 @@ package sidecar
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -21,8 +22,9 @@ import (
 
 // Run starts the sidecar in server mode: initialize tracing, register with the
 // control plane, serve the inbound data plane (dispatching to the local agent),
-// and heartbeat until interrupted. It blocks until a signal or ctx cancellation.
-func Run(ctx context.Context, cfg Config, inbound dataplane.Inbound) error {
+// expose the outbound mesh API (so the agent can call peers), and heartbeat
+// until interrupted. It blocks until a signal or ctx cancellation.
+func Run(ctx context.Context, cfg Config, inbound dataplane.Inbound, outbound dataplane.Outbound) error {
 	shutdownTracer, err := tracing.Init(ctx, "sidecar-"+cfg.AgentID, cfg.OTLPEndpoint)
 	if err != nil {
 		return fmt.Errorf("tracing init: %w", err)
@@ -69,6 +71,25 @@ func Run(ctx context.Context, cfg Config, inbound dataplane.Inbound) error {
 			log.Printf("inbound data plane stopped: %v", err)
 		}
 	}()
+
+	// Outbound mesh API: lets the local agent call other agents through the
+	// mesh (target selection + circuit breaking + reporting in the Caller).
+	if cfg.MeshAPIAddr != "" {
+		caller := NewCaller(client, outbound, cfg.AgentID)
+		meshSrv := &http.Server{Addr: cfg.MeshAPIAddr, Handler: meshAPIHandler(caller)}
+		go func() {
+			<-srvCtx.Done()
+			shCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = meshSrv.Shutdown(shCtx)
+		}()
+		go func() {
+			log.Printf("[mesh-api] outbound API on %s", cfg.MeshAPIAddr)
+			if err := meshSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Printf("mesh API stopped: %v", err)
+			}
+		}()
+	}
 
 	// Heartbeat loop with clean shutdown on signal.
 	sigCh := make(chan os.Signal, 1)

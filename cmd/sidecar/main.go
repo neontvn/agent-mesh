@@ -63,6 +63,8 @@ func main() {
 			"HTTP endpoint to forward inbound calls to (required in server mode)")
 		dataPlane = flag.String("data-plane", "grpc",
 			"sidecar data-plane transport: grpc or a2a")
+		meshAPIAddr = flag.String("mesh-api-addr", "127.0.0.1:9099",
+			"loopback address for the outbound mesh API the local agent calls (empty disables)")
 	)
 	flag.Parse()
 
@@ -109,22 +111,27 @@ func main() {
 		ListenAddr:        *listenAddr,
 		OTLPEndpoint:      *otlpEndpoint,
 		ForwardToURL:      *forwardToURL,
+		MeshAPIAddr:       *meshAPIAddr,
 	}
 	var inbound dataplane.Inbound
+	var outbound dataplane.Outbound
 	switch *dataPlane {
 	case "grpc":
 		inbound = grpcdp.NewServer()
+		outbound = grpcdp.NewClient()
 	case "a2a":
 		card := a2adp.BuildCard(cfg.AgentID, "AgentMesh agent "+cfg.AgentID, cfg.Endpoint, "0.1.0", cfg.Capabilities)
 		if cardJSON, err := json.Marshal(card); err == nil {
 			cfg.AgentCardJSON = string(cardJSON)
 		}
 		inbound = a2adp.NewServer(card)
+		outbound = a2adp.NewClient()
 	default:
 		log.Fatalf("unknown --data-plane %q (want grpc or a2a)", *dataPlane)
 	}
+	defer outbound.Close()
 
-	if err := sidecar.Run(ctx, cfg, inbound); err != nil {
+	if err := sidecar.Run(ctx, cfg, inbound, outbound); err != nil {
 		log.Fatal(err)
 	}
 }
