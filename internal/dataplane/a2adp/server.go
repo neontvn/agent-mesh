@@ -27,9 +27,10 @@ import (
 // of scope for v1 (tasks/cancel only succeeds before a task reaches a terminal
 // state, which in practice means it is a no-op for the synchronous path).
 type Server struct {
-	card  a2a.AgentCard
-	tasks *memStore
-	agent dataplane.LocalAgent
+	card        a2a.AgentCard
+	tasks       *memStore
+	agent       dataplane.LocalAgent
+	onTaskEvent func(taskID, contextID, capability, state string)
 }
 
 var _ dataplane.Inbound = (*Server)(nil)
@@ -38,6 +39,13 @@ var _ dataplane.Inbound = (*Server)(nil)
 // LocalAgent is supplied at Serve time (per the dataplane.Inbound contract).
 func NewServer(card a2a.AgentCard) *Server {
 	return &Server{card: card, tasks: newMemStore()}
+}
+
+// SetTaskEventHook registers a callback fired on every task state transition.
+// The sidecar uses it to report task lifecycle to the control plane. It must be
+// set before Serve. Safe to leave unset (transitions are then only stored).
+func (s *Server) SetTaskEventHook(fn func(taskID, contextID, capability, state string)) {
+	s.onTaskEvent = fn
 }
 
 // Handler returns the bare HTTP routes, without OTel wrapping. Exposed for tests.
@@ -189,17 +197,21 @@ func (s *Server) handleTasksCancel(w http.ResponseWriter, req *a2a.Request) {
 // storing each transition. If emit is non-nil it is called on every transition
 // (used by message/stream). It returns the final Task.
 func (s *Server) runTask(ctx context.Context, msg a2a.Message, emit func(a2a.Task)) a2a.Task {
-	notify := func(t a2a.Task) {
-		s.tasks.Put(t)
-		if emit != nil {
-			emit(t)
-		}
-	}
-
 	id := newID()
 	contextID := msg.ContextID
 	if contextID == "" {
 		contextID = newID()
+	}
+	capability := resolveCapability(msg, s.card)
+
+	notify := func(t a2a.Task) {
+		s.tasks.Put(t)
+		if s.onTaskEvent != nil {
+			s.onTaskEvent(t.ID, t.ContextID, capability, string(t.Status.State))
+		}
+		if emit != nil {
+			emit(t)
+		}
 	}
 
 	task := a2a.Task{
@@ -214,7 +226,6 @@ func (s *Server) runTask(ctx context.Context, msg a2a.Message, emit func(a2a.Tas
 	task.Status = a2a.TaskStatus{State: a2a.TaskStateWorking, Timestamp: now()}
 	notify(task)
 
-	capability := resolveCapability(msg, s.card)
 	out, err := s.agent.Invoke(ctx, capability, messageInput(msg), stringMeta(msg.Metadata))
 	if err != nil {
 		task.Status = a2a.TaskStatus{

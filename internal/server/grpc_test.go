@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	agentmeshv1 "github.com/neontvn/agent-mesh/api/v1"
+	"github.com/neontvn/agent-mesh/internal/web"
 	pb "github.com/neontvn/agent-mesh/proto/agentmesh/v1"
 )
 
@@ -82,5 +84,35 @@ func TestRegisterStoresAndDiscoverServesAgentCard(t *testing.T) {
 	}
 	if parsed.Name != "summarizer" || len(parsed.Skills) != 1 || parsed.Skills[0].ID != "summarize" {
 		t.Errorf("parsed card = %+v, unexpected", parsed)
+	}
+}
+
+func TestReportTaskEventPublishesToBus(t *testing.T) {
+	s := newTestServer(t)
+	bus := web.NewEventBus()
+	s.Bus = bus
+
+	sub := bus.Subscribe()
+	defer bus.Unsubscribe(sub)
+
+	if _, err := s.ReportTaskEvent(context.Background(), &pb.ReportTaskEventRequest{
+		AgentId:    "summarizer-1",
+		TaskId:     "task-1",
+		Capability: "summarize",
+		State:      "working",
+	}); err != nil {
+		t.Fatalf("ReportTaskEvent: %v", err)
+	}
+
+	select {
+	case ev := <-sub:
+		if ev.Type != web.EventTaskUpdated {
+			t.Errorf("event type = %q, want task_updated", ev.Type)
+		}
+		if ev.Data["state"] != "working" || ev.Data["capability"] != "summarize" {
+			t.Errorf("event data = %+v, unexpected", ev.Data)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no event published to bus")
 	}
 }

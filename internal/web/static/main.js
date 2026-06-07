@@ -11,6 +11,9 @@ let recentInvokes = [];
 // Sliding window of invoke timestamps for the timeline histogram.
 let timelineInvokes = [];
 
+// task_id -> { taskId, agent, capability, state, lastSeen }
+const tasks = new Map();
+
 // ===================== WebSocket =====================
 
 let ws;
@@ -107,11 +110,27 @@ function handleEvent(event) {
             break;
         }
 
+        case 'task_updated': {
+            const id = d.task_id;
+            if (id) {
+                const existing = tasks.get(id) || {};
+                tasks.set(id, {
+                    taskId: id,
+                    agent: d.agent_id || existing.agent || '',
+                    capability: d.capability || existing.capability || '',
+                    state: d.state || existing.state || 'submitted',
+                    lastSeen: ts,
+                });
+            }
+            break;
+        }
+
         default:
             break;
     }
 
     renderSidebar();
+    renderTasks();
     syncAgents(Array.from(agents.values()));
     updateEmptyState();
 }
@@ -136,6 +155,32 @@ function renderSidebar() {
                 <span class="agent-time">${formatRelative(a.lastSeen)}</span>
             </div>
             <div class="cap-pills">${caps}</div>
+        `;
+        list.appendChild(li);
+    }
+}
+
+// Render the most-recently-updated tasks with a state badge.
+function renderTasks() {
+    const list = document.getElementById('task-list');
+    if (!list) return;
+    const sorted = Array.from(tasks.values())
+        .sort((a, b) => b.lastSeen - a.lastSeen)
+        .slice(0, 12);
+
+    list.innerHTML = '';
+    for (const t of sorted) {
+        const li = document.createElement('li');
+        li.className = 'task-item';
+        li.innerHTML = `
+            <div class="task-row">
+                <span class="task-cap">${escapeHTML(t.capability || '—')}</span>
+                <span class="badge ${escapeHTML(t.state)}">${escapeHTML(t.state)}</span>
+            </div>
+            <div class="task-meta">
+                <span class="task-agent">${escapeHTML(t.agent || '')}</span>
+                <span class="task-time">${formatRelative(t.lastSeen)}</span>
+            </div>
         `;
         list.appendChild(li);
     }
@@ -232,6 +277,7 @@ connect();
 // Periodic UI tick: refresh relative times, stats, timeline.
 setInterval(() => {
     renderSidebar();
+    renderTasks();
     updateActiveCalls();
     drawTimeline();
 }, 1000);

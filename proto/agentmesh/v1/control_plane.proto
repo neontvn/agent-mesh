@@ -31,6 +31,11 @@ service ControlPlane {
     // so the control plane can broadcast routing events to observability
     // subscribers (the live UI, metrics, traces).
     rpc ReportInvoke(ReportInvokeRequest) returns (ReportInvokeResponse);
+
+    // ReportTaskEvent is called by a sidecar on each A2A task state transition
+    // (submitted, working, completed, failed, ...) so the control plane can
+    // broadcast task lifecycle to observability subscribers (the live UI).
+    rpc ReportTaskEvent(ReportTaskEventRequest) returns (ReportTaskEventResponse);
 }
 
 // RegisterRequest is sent by a sidecar when its local agent starts up.
@@ -142,4 +147,21 @@ message ReportInvokeRequest {
 
 // ReportInvokeResponse is an empty acknowledgement.
 message ReportInvokeResponse {}
+
+// ReportTaskEventRequest reports a single A2A task state transition observed by
+// the agent that owns the task.
+message ReportTaskEventRequest {
+    // The agent running the task (the callee).
+    string agent_id = 1;
+    // Task and context identifiers from the A2A task.
+    string task_id = 2;
+    string context_id = 3;
+    // The capability the task is fulfilling.
+    string capability = 4;
+    // The new lifecycle state (e.g. "submitted", "working", "completed").
+    string state = 5;
+}
+
+// ReportTaskEventResponse is an empty acknowledgement.
+message ReportTaskEventResponse {}
 

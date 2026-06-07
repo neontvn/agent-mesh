@@ -25,6 +25,7 @@ const (
 	EventAgentHeartbeat     EventType = "agent_heartbeat"
 	EventAgentHealthChanged EventType = "agent_health_changed"
 	EventInvokeCompleted    EventType = "invoke_completed"
+	EventTaskUpdated        EventType = "task_updated"
 )
 
 // Event is a single mesh event broadcast to all WebSocket subscribers.

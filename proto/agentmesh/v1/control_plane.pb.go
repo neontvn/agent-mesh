@@ -713,6 +713,125 @@ func (*ReportInvokeResponse) Descriptor() ([]byte, []int) {
 	return file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP(), []int{10}
 }
 
+// ReportTaskEventRequest reports a single A2A task state transition observed by
+// the agent that owns the task.
+type ReportTaskEventRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The agent running the task (the callee).
+	AgentId string `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	// Task and context identifiers from the A2A task.
+	TaskId    string `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ContextId string `protobuf:"bytes,3,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
+	// The capability the task is fulfilling.
+	Capability string `protobuf:"bytes,4,opt,name=capability,proto3" json:"capability,omitempty"`
+	// The new lifecycle state (e.g. "submitted", "working", "completed").
+	State         string `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportTaskEventRequest) Reset() {
+	*x = ReportTaskEventRequest{}
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportTaskEventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportTaskEventRequest) ProtoMessage() {}
+
+func (x *ReportTaskEventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportTaskEventRequest.ProtoReflect.Descriptor instead.
+func (*ReportTaskEventRequest) Descriptor() ([]byte, []int) {
+	return file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ReportTaskEventRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *ReportTaskEventRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ReportTaskEventRequest) GetContextId() string {
+	if x != nil {
+		return x.ContextId
+	}
+	return ""
+}
+
+func (x *ReportTaskEventRequest) GetCapability() string {
+	if x != nil {
+		return x.Capability
+	}
+	return ""
+}
+
+func (x *ReportTaskEventRequest) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+// ReportTaskEventResponse is an empty acknowledgement.
+type ReportTaskEventResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportTaskEventResponse) Reset() {
+	*x = ReportTaskEventResponse{}
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportTaskEventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportTaskEventResponse) ProtoMessage() {}
+
+func (x *ReportTaskEventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_agentmesh_v1_control_plane_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportTaskEventResponse.ProtoReflect.Descriptor instead.
+func (*ReportTaskEventResponse) Descriptor() ([]byte, []int) {
+	return file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP(), []int{12}
+}
+
 var File_proto_agentmesh_v1_control_plane_proto protoreflect.FileDescriptor
 
 const file_proto_agentmesh_v1_control_plane_proto_rawDesc = "" +
@@ -769,18 +888,29 @@ const file_proto_agentmesh_v1_control_plane_proto_rawDesc = "" +
 	"\vduration_ms\x18\x04 \x01(\x03R\n" +
 	"durationMs\x12\x0e\n" +
 	"\x02ok\x18\x05 \x01(\bR\x02ok\"\x16\n" +
-	"\x14ReportInvokeResponse*|\n" +
+	"\x14ReportInvokeResponse\"\xa1\x01\n" +
+	"\x16ReportTaskEventRequest\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\n" +
+	"context_id\x18\x03 \x01(\tR\tcontextId\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x04 \x01(\tR\n" +
+	"capability\x12\x14\n" +
+	"\x05state\x18\x05 \x01(\tR\x05state\"\x19\n" +
+	"\x17ReportTaskEventResponse*|\n" +
 	"\vHealthState\x12\x1c\n" +
 	"\x18HEALTH_STATE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14HEALTH_STATE_HEALTHY\x10\x01\x12\x19\n" +
 	"\x15HEALTH_STATE_DEGRADED\x10\x02\x12\x1a\n" +
-	"\x16HEALTH_STATE_UNHEALTHY\x10\x032\xa0\x03\n" +
+	"\x16HEALTH_STATE_UNHEALTHY\x10\x032\x80\x04\n" +
 	"\fControlPlane\x12I\n" +
 	"\bRegister\x12\x1d.agentmesh.v1.RegisterRequest\x1a\x1e.agentmesh.v1.RegisterResponse\x12L\n" +
 	"\tHeartbeat\x12\x1e.agentmesh.v1.HeartbeatRequest\x1a\x1f.agentmesh.v1.HeartbeatResponse\x12I\n" +
 	"\bDiscover\x12\x1d.agentmesh.v1.DiscoverRequest\x1a\x1e.agentmesh.v1.DiscoverResponse\x12U\n" +
 	"\fSelectTarget\x12!.agentmesh.v1.SelectTargetRequest\x1a\".agentmesh.v1.SelectTargetResponse\x12U\n" +
-	"\fReportInvoke\x12!.agentmesh.v1.ReportInvokeRequest\x1a\".agentmesh.v1.ReportInvokeResponseB>Z<github.com/neontvn/agent-mesh/proto/agentmesh/v1;agentmeshv1b\x06proto3"
+	"\fReportInvoke\x12!.agentmesh.v1.ReportInvokeRequest\x1a\".agentmesh.v1.ReportInvokeResponse\x12^\n" +
+	"\x0fReportTaskEvent\x12$.agentmesh.v1.ReportTaskEventRequest\x1a%.agentmesh.v1.ReportTaskEventResponseB>Z<github.com/neontvn/agent-mesh/proto/agentmesh/v1;agentmeshv1b\x06proto3"
 
 var (
 	file_proto_agentmesh_v1_control_plane_proto_rawDescOnce sync.Once
@@ -795,41 +925,45 @@ func file_proto_agentmesh_v1_control_plane_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_agentmesh_v1_control_plane_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_agentmesh_v1_control_plane_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_proto_agentmesh_v1_control_plane_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_proto_agentmesh_v1_control_plane_proto_goTypes = []any{
-	(HealthState)(0),             // 0: agentmesh.v1.HealthState
-	(*RegisterRequest)(nil),      // 1: agentmesh.v1.RegisterRequest
-	(*RegisterResponse)(nil),     // 2: agentmesh.v1.RegisterResponse
-	(*HeartbeatRequest)(nil),     // 3: agentmesh.v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil),    // 4: agentmesh.v1.HeartbeatResponse
-	(*DiscoverRequest)(nil),      // 5: agentmesh.v1.DiscoverRequest
-	(*DiscoverResponse)(nil),     // 6: agentmesh.v1.DiscoverResponse
-	(*SelectTargetRequest)(nil),  // 7: agentmesh.v1.SelectTargetRequest
-	(*SelectTargetResponse)(nil), // 8: agentmesh.v1.SelectTargetResponse
-	(*AgentInfo)(nil),            // 9: agentmesh.v1.AgentInfo
-	(*ReportInvokeRequest)(nil),  // 10: agentmesh.v1.ReportInvokeRequest
-	(*ReportInvokeResponse)(nil), // 11: agentmesh.v1.ReportInvokeResponse
-	nil,                          // 12: agentmesh.v1.RegisterRequest.MetadataEntry
-	nil,                          // 13: agentmesh.v1.AgentInfo.MetadataEntry
+	(HealthState)(0),                // 0: agentmesh.v1.HealthState
+	(*RegisterRequest)(nil),         // 1: agentmesh.v1.RegisterRequest
+	(*RegisterResponse)(nil),        // 2: agentmesh.v1.RegisterResponse
+	(*HeartbeatRequest)(nil),        // 3: agentmesh.v1.HeartbeatRequest
+	(*HeartbeatResponse)(nil),       // 4: agentmesh.v1.HeartbeatResponse
+	(*DiscoverRequest)(nil),         // 5: agentmesh.v1.DiscoverRequest
+	(*DiscoverResponse)(nil),        // 6: agentmesh.v1.DiscoverResponse
+	(*SelectTargetRequest)(nil),     // 7: agentmesh.v1.SelectTargetRequest
+	(*SelectTargetResponse)(nil),    // 8: agentmesh.v1.SelectTargetResponse
+	(*AgentInfo)(nil),               // 9: agentmesh.v1.AgentInfo
+	(*ReportInvokeRequest)(nil),     // 10: agentmesh.v1.ReportInvokeRequest
+	(*ReportInvokeResponse)(nil),    // 11: agentmesh.v1.ReportInvokeResponse
+	(*ReportTaskEventRequest)(nil),  // 12: agentmesh.v1.ReportTaskEventRequest
+	(*ReportTaskEventResponse)(nil), // 13: agentmesh.v1.ReportTaskEventResponse
+	nil,                             // 14: agentmesh.v1.RegisterRequest.MetadataEntry
+	nil,                             // 15: agentmesh.v1.AgentInfo.MetadataEntry
 }
 var file_proto_agentmesh_v1_control_plane_proto_depIdxs = []int32{
-	12, // 0: agentmesh.v1.RegisterRequest.metadata:type_name -> agentmesh.v1.RegisterRequest.MetadataEntry
+	14, // 0: agentmesh.v1.RegisterRequest.metadata:type_name -> agentmesh.v1.RegisterRequest.MetadataEntry
 	0,  // 1: agentmesh.v1.HeartbeatRequest.health:type_name -> agentmesh.v1.HealthState
 	9,  // 2: agentmesh.v1.DiscoverResponse.agents:type_name -> agentmesh.v1.AgentInfo
 	9,  // 3: agentmesh.v1.SelectTargetResponse.agent:type_name -> agentmesh.v1.AgentInfo
-	13, // 4: agentmesh.v1.AgentInfo.metadata:type_name -> agentmesh.v1.AgentInfo.MetadataEntry
+	15, // 4: agentmesh.v1.AgentInfo.metadata:type_name -> agentmesh.v1.AgentInfo.MetadataEntry
 	1,  // 5: agentmesh.v1.ControlPlane.Register:input_type -> agentmesh.v1.RegisterRequest
 	3,  // 6: agentmesh.v1.ControlPlane.Heartbeat:input_type -> agentmesh.v1.HeartbeatRequest
 	5,  // 7: agentmesh.v1.ControlPlane.Discover:input_type -> agentmesh.v1.DiscoverRequest
 	7,  // 8: agentmesh.v1.ControlPlane.SelectTarget:input_type -> agentmesh.v1.SelectTargetRequest
 	10, // 9: agentmesh.v1.ControlPlane.ReportInvoke:input_type -> agentmesh.v1.ReportInvokeRequest
-	2,  // 10: agentmesh.v1.ControlPlane.Register:output_type -> agentmesh.v1.RegisterResponse
-	4,  // 11: agentmesh.v1.ControlPlane.Heartbeat:output_type -> agentmesh.v1.HeartbeatResponse
-	6,  // 12: agentmesh.v1.ControlPlane.Discover:output_type -> agentmesh.v1.DiscoverResponse
-	8,  // 13: agentmesh.v1.ControlPlane.SelectTarget:output_type -> agentmesh.v1.SelectTargetResponse
-	11, // 14: agentmesh.v1.ControlPlane.ReportInvoke:output_type -> agentmesh.v1.ReportInvokeResponse
-	10, // [10:15] is the sub-list for method output_type
-	5,  // [5:10] is the sub-list for method input_type
+	12, // 10: agentmesh.v1.ControlPlane.ReportTaskEvent:input_type -> agentmesh.v1.ReportTaskEventRequest
+	2,  // 11: agentmesh.v1.ControlPlane.Register:output_type -> agentmesh.v1.RegisterResponse
+	4,  // 12: agentmesh.v1.ControlPlane.Heartbeat:output_type -> agentmesh.v1.HeartbeatResponse
+	6,  // 13: agentmesh.v1.ControlPlane.Discover:output_type -> agentmesh.v1.DiscoverResponse
+	8,  // 14: agentmesh.v1.ControlPlane.SelectTarget:output_type -> agentmesh.v1.SelectTargetResponse
+	11, // 15: agentmesh.v1.ControlPlane.ReportInvoke:output_type -> agentmesh.v1.ReportInvokeResponse
+	13, // 16: agentmesh.v1.ControlPlane.ReportTaskEvent:output_type -> agentmesh.v1.ReportTaskEventResponse
+	11, // [11:17] is the sub-list for method output_type
+	5,  // [5:11] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -846,7 +980,7 @@ func file_proto_agentmesh_v1_control_plane_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_agentmesh_v1_control_plane_proto_rawDesc), len(file_proto_agentmesh_v1_control_plane_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

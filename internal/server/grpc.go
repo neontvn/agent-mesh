@@ -242,3 +242,18 @@ func (s *ControlPlaneServer) ReportInvoke(ctx context.Context, req *pb.ReportInv
 	}
 	return &pb.ReportInvokeResponse{}, nil
 }
+
+// ReportTaskEvent records an A2A task state transition reported by the agent
+// running the task and broadcasts it to observability subscribers (the live UI).
+func (s *ControlPlaneServer) ReportTaskEvent(ctx context.Context, req *pb.ReportTaskEventRequest) (*pb.ReportTaskEventResponse, error) {
+	if s.Bus != nil {
+		s.Bus.Publish(web.EventTaskUpdated, map[string]interface{}{
+			"agent_id":   req.AgentId,
+			"task_id":    req.TaskId,
+			"context_id": req.ContextId,
+			"capability": req.Capability,
+			"state":      req.State,
+		})
+	}
+	return &pb.ReportTaskEventResponse{}, nil
+}

@@ -62,6 +62,25 @@ func Run(ctx context.Context, cfg Config, inbound dataplane.Inbound, outbound da
 	}
 	fmt.Printf("Registered. lease_id=%s ttl=%ds\n", resp.LeaseId, resp.LeaseTtlSeconds)
 
+	// If the inbound transport reports task lifecycle (the A2A data plane does),
+	// forward each transition to the control plane so the live UI can show it.
+	type taskEventHook interface {
+		SetTaskEventHook(func(taskID, contextID, capability, state string))
+	}
+	if h, ok := inbound.(taskEventHook); ok {
+		h.SetTaskEventHook(func(taskID, contextID, capability, state string) {
+			rctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			_, _ = client.ReportTaskEvent(rctx, &pb.ReportTaskEventRequest{
+				AgentId:    cfg.AgentID,
+				TaskId:     taskID,
+				ContextId:  contextID,
+				Capability: capability,
+				State:      state,
+			})
+		})
+	}
+
 	// Start the inbound data plane so peer sidecars can call this agent.
 	agent := newHTTPLocalAgent(cfg.ForwardToURL, &http.Client{Timeout: 30 * time.Second})
 	srvCtx, srvCancel := context.WithCancel(ctx)

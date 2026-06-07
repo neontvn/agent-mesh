@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/neontvn/agent-mesh/internal/a2a"
@@ -153,6 +154,34 @@ func TestTasksGetMissingIsNotFound(t *testing.T) {
 	})
 	if resp.Error == nil || resp.Error.Code != a2a.CodeTaskNotFound {
 		t.Fatalf("error = %+v, want TaskNotFound", resp.Error)
+	}
+}
+
+func TestTaskEventHookFiresLifecycle(t *testing.T) {
+	s := NewServer(BuildCard("summarizer", "test agent", "", "0.1.0", []string{"summarize"}))
+	s.agent = &fakeAgent{result: []byte("done")}
+
+	var mu sync.Mutex
+	var states []string
+	s.SetTaskEventHook(func(_, _, capability, state string) {
+		mu.Lock()
+		defer mu.Unlock()
+		if capability != "summarize" {
+			t.Errorf("hook capability = %q, want summarize", capability)
+		}
+		states = append(states, state)
+	})
+
+	ts := httptest.NewServer(s.Handler())
+	t.Cleanup(ts.Close)
+
+	sendMessage(t, ts.URL, "hi") // blocks until the task completes
+
+	mu.Lock()
+	got := strings.Join(states, ",")
+	mu.Unlock()
+	if got != "submitted,working,completed" {
+		t.Errorf("transitions = %q, want submitted,working,completed", got)
 	}
 }
 
