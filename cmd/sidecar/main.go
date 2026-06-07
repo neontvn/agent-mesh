@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neontvn/agent-mesh/internal/dataplane"
+	"github.com/neontvn/agent-mesh/internal/dataplane/a2adp"
 	"github.com/neontvn/agent-mesh/internal/dataplane/grpcdp"
 	"github.com/neontvn/agent-mesh/internal/sidecar"
 )
@@ -58,6 +60,8 @@ func main() {
 			"OTLP gRPC endpoint to export traces to")
 		forwardToURL = flag.String("forward-to-url", "",
 			"HTTP endpoint to forward inbound calls to (required in server mode)")
+		dataPlane = flag.String("data-plane", "grpc",
+			"sidecar data-plane transport: grpc or a2a")
 	)
 	flag.Parse()
 
@@ -97,7 +101,18 @@ func main() {
 		OTLPEndpoint:      *otlpEndpoint,
 		ForwardToURL:      *forwardToURL,
 	}
-	if err := sidecar.Run(ctx, cfg, grpcdp.NewServer()); err != nil {
+	var inbound dataplane.Inbound
+	switch *dataPlane {
+	case "grpc":
+		inbound = grpcdp.NewServer()
+	case "a2a":
+		card := a2adp.BuildCard(cfg.AgentID, "AgentMesh agent "+cfg.AgentID, cfg.Endpoint, "0.1.0", cfg.Capabilities)
+		inbound = a2adp.NewServer(card)
+	default:
+		log.Fatalf("unknown --data-plane %q (want grpc or a2a)", *dataPlane)
+	}
+
+	if err := sidecar.Run(ctx, cfg, inbound); err != nil {
 		log.Fatal(err)
 	}
 }
