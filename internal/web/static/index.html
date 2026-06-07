@@ -47,6 +47,33 @@
         </main>
     </div>
 
+    <section id="event-stream">
+        <div class="es-header">
+            <div class="es-title">LIVE EVENT STREAM <span id="es-live" class="es-badge">● Live</span></div>
+            <div class="es-actions">
+                <button id="es-pause" class="es-btn">⏸ Pause</button>
+                <button id="es-export" class="es-btn">⬇ Export</button>
+            </div>
+        </div>
+        <div class="es-table-wrap">
+            <table class="es-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Source</th>
+                        <th></th>
+                        <th>Destination</th>
+                        <th>Method</th>
+                        <th>Payload</th>
+                        <th>Status</th>
+                        <th>Latency</th>
+                    </tr>
+                </thead>
+                <tbody id="es-rows"></tbody>
+            </table>
+        </div>
+    </section>
+
     <footer id="timeline-bar">
         <div class="timeline-controls">
             <button class="ctrl" title="play">▶</button>

@@ -93,6 +93,9 @@ func (c *Client) Invoke(ctx context.Context, endpoint, capability string, payloa
 	return taskResult(task)
 }
 
+// Method reports the A2A wire method this transport uses.
+func (c *Client) Method() string { return a2a.MethodMessageSend }
+
 // Close is a no-op; the underlying http.Client manages idle connections itself.
 func (c *Client) Close() error { return nil }
 

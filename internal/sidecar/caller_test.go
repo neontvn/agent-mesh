@@ -43,6 +43,8 @@ func (f *fakeOutbound) Invoke(context.Context, string, string, []byte, map[strin
 	return f.result, f.err
 }
 
+func (f *fakeOutbound) Method() string { return "fake/invoke" }
+
 func (f *fakeOutbound) Close() error { return nil }
 
 func TestCallerInvokeSuccess(t *testing.T) {

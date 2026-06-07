@@ -64,6 +64,9 @@ func (c *Client) dial(endpoint string) (*grpclib.ClientConn, error) {
 	return conn, nil
 }
 
+// Method reports the wire method this transport uses.
+func (c *Client) Method() string { return "grpc/invoke" }
+
 // Close releases all pooled connections.
 func (c *Client) Close() error {
 	c.mu.Lock()

@@ -143,6 +143,10 @@ message ReportInvokeRequest {
     string capability = 3;
     int64 duration_ms = 4;
     bool ok = 5;
+    // The data-plane method used for the call (e.g. "message/send").
+    string method = 6;
+    // Size of the request payload in bytes.
+    int64 payload_bytes = 7;
 }
 
 // ReportInvokeResponse is an empty acknowledgement.

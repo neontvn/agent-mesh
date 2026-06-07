@@ -601,12 +601,16 @@ func (x *AgentInfo) GetAgentCard() string {
 // ReportInvokeRequest is sent after an A2A Invoke completes so the control
 // plane can record and broadcast it.
 type ReportInvokeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CallerId      string                 `protobuf:"bytes,1,opt,name=caller_id,json=callerId,proto3" json:"caller_id,omitempty"`
-	CalleeId      string                 `protobuf:"bytes,2,opt,name=callee_id,json=calleeId,proto3" json:"callee_id,omitempty"`
-	Capability    string                 `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
-	DurationMs    int64                  `protobuf:"varint,4,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	Ok            bool                   `protobuf:"varint,5,opt,name=ok,proto3" json:"ok,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	CallerId   string                 `protobuf:"bytes,1,opt,name=caller_id,json=callerId,proto3" json:"caller_id,omitempty"`
+	CalleeId   string                 `protobuf:"bytes,2,opt,name=callee_id,json=calleeId,proto3" json:"callee_id,omitempty"`
+	Capability string                 `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
+	DurationMs int64                  `protobuf:"varint,4,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Ok         bool                   `protobuf:"varint,5,opt,name=ok,proto3" json:"ok,omitempty"`
+	// The data-plane method used for the call (e.g. "message/send").
+	Method string `protobuf:"bytes,6,opt,name=method,proto3" json:"method,omitempty"`
+	// Size of the request payload in bytes.
+	PayloadBytes  int64 `protobuf:"varint,7,opt,name=payload_bytes,json=payloadBytes,proto3" json:"payload_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -674,6 +678,20 @@ func (x *ReportInvokeRequest) GetOk() bool {
 		return x.Ok
 	}
 	return false
+}
+
+func (x *ReportInvokeRequest) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *ReportInvokeRequest) GetPayloadBytes() int64 {
+	if x != nil {
+		return x.PayloadBytes
+	}
+	return 0
 }
 
 // ReportInvokeResponse is an empty acknowledgement.
@@ -878,7 +896,7 @@ const file_proto_agentmesh_v1_control_plane_proto_rawDesc = "" +
 	"agent_card\x18\x05 \x01(\tR\tagentCard\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa0\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdd\x01\n" +
 	"\x13ReportInvokeRequest\x12\x1b\n" +
 	"\tcaller_id\x18\x01 \x01(\tR\bcallerId\x12\x1b\n" +
 	"\tcallee_id\x18\x02 \x01(\tR\bcalleeId\x12\x1e\n" +
@@ -887,7 +905,9 @@ const file_proto_agentmesh_v1_control_plane_proto_rawDesc = "" +
 	"capability\x12\x1f\n" +
 	"\vduration_ms\x18\x04 \x01(\x03R\n" +
 	"durationMs\x12\x0e\n" +
-	"\x02ok\x18\x05 \x01(\bR\x02ok\"\x16\n" +
+	"\x02ok\x18\x05 \x01(\bR\x02ok\x12\x16\n" +
+	"\x06method\x18\x06 \x01(\tR\x06method\x12#\n" +
+	"\rpayload_bytes\x18\a \x01(\x03R\fpayloadBytes\"\x16\n" +
 	"\x14ReportInvokeResponse\"\xa1\x01\n" +
 	"\x16ReportTaskEventRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x17\n" +

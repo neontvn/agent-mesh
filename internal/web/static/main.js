@@ -107,6 +107,16 @@ function handleEvent(event) {
                 syncAgents(Array.from(agents.values()));
                 animateInvoke(d.caller_id, d.callee_id, d.ok !== false);
             }
+            logEvent({
+                time: ts,
+                source: d.caller_id || '',
+                dest: d.callee_id || '',
+                method: d.method || '',
+                capability: d.capability || '',
+                bytes: Number(d.payload_bytes || 0),
+                ok: d.ok !== false,
+                latency: Number(d.duration_ms || 0),
+            });
             break;
         }
 
@@ -231,6 +241,88 @@ function updateActiveCalls() {
     document.getElementById('active-calls').textContent = rate.toFixed(1);
 }
 
+// ===================== Live event stream =====================
+
+const eventLog = [];
+let streamPaused = false;
+
+// logEvent records one invoke and re-renders the stream unless paused.
+function logEvent(rec) {
+    eventLog.push(rec);
+    if (eventLog.length > 500) eventLog.shift();
+    if (!streamPaused) renderEventStream();
+}
+
+function renderEventStream() {
+    const tbody = document.getElementById('es-rows');
+    if (!tbody) return;
+    const rows = eventLog.slice(-60).reverse();
+    tbody.innerHTML = rows.map((r) => {
+        const status = r.ok
+            ? '<span class="es-ok">✓</span>'
+            : '<span class="es-fail">✗</span>';
+        const latClass = r.latency > 100 ? 'es-lat-slow' : 'es-lat';
+        const payload = `${escapeHTML(r.capability || '—')} <span class="es-size">${formatBytes(r.bytes)}</span>`;
+        return `<tr>
+            <td class="es-time">${formatClock(r.time)}</td>
+            <td class="es-node">${escapeHTML(r.source)}</td>
+            <td class="es-arrow">→</td>
+            <td class="es-node">${escapeHTML(r.dest)}</td>
+            <td class="es-method">${escapeHTML(r.method || '—')}</td>
+            <td>${payload}</td>
+            <td>${status}</td>
+            <td class="${latClass}">${r.latency}ms</td>
+        </tr>`;
+    }).join('');
+}
+
+function formatClock(d) {
+    const p = (n, l = 2) => String(n).padStart(l, '0');
+    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`;
+}
+
+function formatBytes(n) {
+    if (!n) return '0 B';
+    if (n < 1024) return `${n} B`;
+    return `${(n / 1024).toFixed(1)} KB`;
+}
+
+function exportEvents() {
+    const header = ['time', 'source', 'destination', 'method', 'capability', 'payload_bytes', 'status', 'latency_ms'];
+    const lines = [header.join(',')];
+    for (const r of eventLog) {
+        lines.push([
+            r.time.toISOString(), r.source, r.dest, r.method, r.capability,
+            r.bytes, r.ok ? 'ok' : 'fail', r.latency,
+        ].join(','));
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'agentmesh-events.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function wireStreamControls() {
+    const pauseBtn = document.getElementById('es-pause');
+    const exportBtn = document.getElementById('es-export');
+    const liveBadge = document.getElementById('es-live');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => {
+            streamPaused = !streamPaused;
+            pauseBtn.textContent = streamPaused ? '▶ Resume' : '⏸ Pause';
+            if (liveBadge) {
+                liveBadge.textContent = streamPaused ? '● Paused' : '● Live';
+                liveBadge.classList.toggle('paused', streamPaused);
+            }
+            if (!streamPaused) renderEventStream();
+        });
+    }
+    if (exportBtn) exportBtn.addEventListener('click', exportEvents);
+}
+
 // ===================== Timeline canvas =====================
 
 const timelineCanvas = document.getElementById('timeline');
@@ -272,6 +364,7 @@ function drawTimeline() {
 // ===================== Lifecycle =====================
 
 initScene(document.getElementById('viewport'));
+wireStreamControls();
 connect();
 
 // Periodic UI tick: refresh relative times, stats, timeline.

@@ -62,12 +62,12 @@ func (c *Caller) Invoke(ctx context.Context, capability string, input []byte, me
 		if err != nil {
 			lastErr = err
 			c.breaker.RecordFailure(target.AgentId)
-			c.report(ctx, target.AgentId, capability, durationMs, false)
+			c.report(ctx, target.AgentId, capability, int64(len(input)), durationMs, false)
 			continue
 		}
 
 		c.breaker.RecordSuccess(target.AgentId)
-		c.report(ctx, target.AgentId, capability, durationMs, true)
+		c.report(ctx, target.AgentId, capability, int64(len(input)), durationMs, true)
 		return out, nil
 	}
 
@@ -78,14 +78,16 @@ func (c *Caller) Invoke(ctx context.Context, capability string, input []byte, me
 }
 
 // report fires ReportInvoke; best-effort, errors ignored.
-func (c *Caller) report(ctx context.Context, peer, capability string, durationMs int64, ok bool) {
+func (c *Caller) report(ctx context.Context, peer, capability string, payloadBytes, durationMs int64, ok bool) {
 	rctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	_, _ = c.cp.ReportInvoke(rctx, &pb.ReportInvokeRequest{
-		CallerId:   c.from,
-		CalleeId:   peer,
-		Capability: capability,
-		DurationMs: durationMs,
-		Ok:         ok,
+		CallerId:     c.from,
+		CalleeId:     peer,
+		Capability:   capability,
+		DurationMs:   durationMs,
+		Ok:           ok,
+		Method:       c.out.Method(),
+		PayloadBytes: payloadBytes,
 	})
 }

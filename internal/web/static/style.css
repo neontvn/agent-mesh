@@ -10,11 +10,102 @@ html, body {
     -webkit-font-smoothing: antialiased;
 }
 
+body {
+    display: flex;
+    flex-direction: column;
+}
+
 #app {
     display: grid;
     grid-template-columns: 300px 1fr;
-    height: calc(100vh - 64px);
+    flex: 1 1 auto;
+    min-height: 0;
 }
+
+/* ===================== Live event stream ===================== */
+
+#event-stream {
+    flex: 0 0 240px;
+    display: flex;
+    flex-direction: column;
+    background: #060c1c;
+    border-top: 1px solid rgba(70, 130, 255, 0.15);
+}
+
+.es-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(70, 130, 255, 0.12);
+}
+
+.es-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    color: #d6e3f4;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.es-badge { font-size: 10px; font-weight: 500; color: #4fe0a0; letter-spacing: 0.3px; }
+.es-badge.paused { color: #f5b557; }
+
+.es-actions { display: flex; gap: 8px; }
+
+.es-btn {
+    font: inherit;
+    font-size: 11px;
+    color: #a4c4f0;
+    background: rgba(70, 130, 255, 0.1);
+    border: 1px solid rgba(70, 130, 255, 0.2);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+.es-btn:hover { background: rgba(70, 130, 255, 0.18); }
+
+.es-table-wrap { overflow-y: auto; flex: 1 1 auto; }
+
+.es-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+.es-table thead th {
+    position: sticky;
+    top: 0;
+    background: #060c1c;
+    text-align: left;
+    font-weight: 500;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #6b87b3;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(70, 130, 255, 0.12);
+}
+
+.es-table tbody td {
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(70, 130, 255, 0.06);
+    color: #c2d4ee;
+    white-space: nowrap;
+}
+
+.es-time, .es-lat, .es-lat-slow {
+    font-variant-numeric: tabular-nums;
+    font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+    font-size: 11px;
+}
+.es-time { color: #6b87b3; }
+.es-node { color: #d6e3f4; }
+.es-arrow { color: #5cd5fb; padding: 0 2px; }
+.es-method { color: #a4c4f0; }
+.es-size { color: #6b87b3; }
+.es-ok { color: #4fe0a0; font-weight: 600; }
+.es-fail { color: #ff5577; font-weight: 600; }
+.es-lat { color: #6b87b3; }
+.es-lat-slow { color: #f5b557; }
 
 /* ===================== Sidebar ===================== */
 

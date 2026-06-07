@@ -233,11 +233,13 @@ func agentToInfo(a *agentmeshv1.Agent) *pb.AgentInfo {
 func (s *ControlPlaneServer) ReportInvoke(ctx context.Context, req *pb.ReportInvokeRequest) (*pb.ReportInvokeResponse, error) {
 	if s.Bus != nil {
 		s.Bus.Publish(web.EventInvokeCompleted, map[string]interface{}{
-			"caller_id":   req.CallerId,
-			"callee_id":   req.CalleeId,
-			"capability":  req.Capability,
-			"duration_ms": req.DurationMs,
-			"ok":          req.Ok,
+			"caller_id":     req.CallerId,
+			"callee_id":     req.CalleeId,
+			"capability":    req.Capability,
+			"duration_ms":   req.DurationMs,
+			"ok":            req.Ok,
+			"method":        req.Method,
+			"payload_bytes": req.PayloadBytes,
 		})
 	}
 	return &pb.ReportInvokeResponse{}, nil

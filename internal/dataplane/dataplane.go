@@ -26,5 +26,8 @@ type Inbound interface {
 // connections; Close releases any such resources.
 type Outbound interface {
 	Invoke(ctx context.Context, endpoint, capability string, payload []byte, meta map[string]string) ([]byte, error)
+	// Method returns the wire method this transport uses (e.g. "message/send"),
+	// for reporting/observability.
+	Method() string
 	Close() error
 }
