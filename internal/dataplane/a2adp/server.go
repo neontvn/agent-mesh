@@ -229,7 +229,7 @@ func (s *Server) runTask(ctx context.Context, msg a2a.Message, emit func(a2a.Tas
 	task.Artifacts = []a2a.Artifact{{
 		ArtifactID: newID(),
 		Name:       capability + "-result",
-		Parts:      []a2a.Part{resultPart(out)},
+		Parts:      []a2a.Part{partFromBytes(out)},
 	}}
 	task.Status = a2a.TaskStatus{State: a2a.TaskStateCompleted, Timestamp: now()}
 	notify(task)
@@ -268,9 +268,10 @@ func messageInput(msg a2a.Message) []byte {
 	return nil
 }
 
-// resultPart wraps the local agent's response as an Artifact part: structured
-// JSON becomes a data part, anything else a text part.
-func resultPart(out []byte) a2a.Part {
+// partFromBytes wraps raw bytes as a Part: structured JSON becomes a data part,
+// anything else a text part. Shared by the inbound artifact path and the
+// outbound request path.
+func partFromBytes(out []byte) a2a.Part {
 	var v any
 	if json.Unmarshal(out, &v) == nil {
 		switch v.(type) {

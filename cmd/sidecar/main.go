@@ -67,9 +67,17 @@ func main() {
 
 	ctx := context.Background()
 
-	// Client mode: invoke a capability on a peer via the gRPC outbound transport.
+	// Client mode: invoke a capability on a peer via the selected transport.
 	if *invokeCapability != "" {
-		out := grpcdp.NewClient()
+		var out dataplane.Outbound
+		switch *dataPlane {
+		case "grpc":
+			out = grpcdp.NewClient()
+		case "a2a":
+			out = a2adp.NewClient()
+		default:
+			log.Fatalf("unknown --data-plane %q (want grpc or a2a)", *dataPlane)
+		}
 		defer out.Close()
 		if err := sidecar.RunClient(ctx, sidecar.ClientConfig{
 			ControlPlaneAddr: *controlPlaneAddr,
