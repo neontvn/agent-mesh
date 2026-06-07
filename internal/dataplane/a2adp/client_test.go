@@ -69,11 +69,11 @@ func TestClientPropagatesTaskFailure(t *testing.T) {
 
 func TestRPCURL(t *testing.T) {
 	cases := map[string]string{
-		"localhost:9090":          "http://localhost:9090/a2a",
-		"http://host:9090":        "http://host:9090/a2a",
-		"http://host:9090/":       "http://host:9090/a2a",
-		"https://host/a2a":        "https://host/a2a",
-		"http://host:9090/a2a":    "http://host:9090/a2a",
+		"localhost:9090":       "http://localhost:9090/a2a",
+		"http://host:9090":     "http://host:9090/a2a",
+		"http://host:9090/":    "http://host:9090/a2a",
+		"https://host/a2a":     "https://host/a2a",
+		"http://host:9090/a2a": "http://host:9090/a2a",
 	}
 	for in, want := range cases {
 		if got := rpcURL(in); got != want {
