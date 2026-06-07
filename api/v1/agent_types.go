@@ -33,6 +33,10 @@ type AgentSpec struct {
 
 	// Metadata is arbitrary key-value data describing the agent.
 	Metadata map[string]string `json:"metadata,omitempty"`
+
+	// AgentCard is the agent's A2A AgentCard, serialized as canonical JSON.
+	// Populated when the agent runs the A2A data plane; empty otherwise.
+	AgentCard string `json:"agentCard,omitempty"`
 }
 
 // AgentStatus defines the observed state of Agent.

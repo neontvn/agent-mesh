@@ -53,6 +53,7 @@ func Run(ctx context.Context, cfg Config, inbound dataplane.Inbound) error {
 		Capabilities: cfg.Capabilities,
 		Endpoint:     cfg.Endpoint,
 		Metadata:     cfg.Metadata,
+		AgentCard:    cfg.AgentCardJSON,
 	})
 	if err != nil {
 		return fmt.Errorf("register: %w", err)

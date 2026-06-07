@@ -39,6 +39,11 @@ spec:
           spec:
             description: spec defines the desired state of Agent
             properties:
+              agentCard:
+                description: |-
+                  AgentCard is the agent's A2A AgentCard, serialized as canonical JSON.
+                  Populated when the agent runs the A2A data plane; empty otherwise.
+                type: string
               capabilities:
                 description: Capabilities advertised by this agent (e.g., search,
                   summarize).

@@ -18,6 +18,10 @@ type Config struct {
 	ListenAddr        string
 	OTLPEndpoint      string
 	ForwardToURL      string
+
+	// AgentCardJSON is the agent's A2A AgentCard as canonical JSON, sent to the
+	// control plane at registration. Empty when not running the A2A data plane.
+	AgentCardJSON string
 }
 
 // ClientConfig holds the settings for outbound client mode (one-shot or loop).

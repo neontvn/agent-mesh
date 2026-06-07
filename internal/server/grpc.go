@@ -72,6 +72,7 @@ func (s *ControlPlaneServer) Register(ctx context.Context, req *pb.RegisterReque
 			Capabilities: req.Capabilities,
 			Endpoint:     req.Endpoint,
 			Metadata:     req.Metadata,
+			AgentCard:    req.AgentCard,
 		},
 	}
 
@@ -223,6 +224,7 @@ func agentToInfo(a *agentmeshv1.Agent) *pb.AgentInfo {
 		Capabilities: a.Spec.Capabilities,
 		Endpoint:     a.Spec.Endpoint,
 		Metadata:     a.Spec.Metadata,
+		AgentCard:    a.Spec.AgentCard,
 	}
 }
 

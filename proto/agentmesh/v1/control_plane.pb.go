@@ -86,7 +86,12 @@ type RegisterRequest struct {
 	// Typically a Kubernetes Service or Pod IP plus port.
 	Endpoint string `protobuf:"bytes,3,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
 	// Free-form metadata describing the agent (framework, version, etc.).
-	Metadata      map[string]string `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metadata map[string]string `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// A2A AgentCard for this agent, serialized as canonical JSON. Optional;
+	// populated when the sidecar runs the A2A data plane. The card's JSON form
+	// is its source of truth, so it is carried verbatim rather than re-modeled
+	// as nested protobuf messages.
+	AgentCard     string `protobuf:"bytes,5,opt,name=agent_card,json=agentCard,proto3" json:"agent_card,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -147,6 +152,13 @@ func (x *RegisterRequest) GetMetadata() map[string]string {
 		return x.Metadata
 	}
 	return nil
+}
+
+func (x *RegisterRequest) GetAgentCard() string {
+	if x != nil {
+		return x.AgentCard
+	}
+	return ""
 }
 
 // RegisterResponse is returned to the sidecar after a successful registration.
@@ -509,11 +521,14 @@ func (x *SelectTargetResponse) GetAgent() *AgentInfo {
 
 // AgentInfo describes an agent available for routing.
 type AgentInfo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
-	Capabilities  []string               `protobuf:"bytes,2,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	Endpoint      string                 `protobuf:"bytes,3,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	Metadata      map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	AgentId      string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Capabilities []string               `protobuf:"bytes,2,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	Endpoint     string                 `protobuf:"bytes,3,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	Metadata     map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// A2A AgentCard as canonical JSON, propagated from registration. Empty for
+	// agents that registered without one (e.g. the gRPC data plane).
+	AgentCard     string `protobuf:"bytes,5,opt,name=agent_card,json=agentCard,proto3" json:"agent_card,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -574,6 +589,13 @@ func (x *AgentInfo) GetMetadata() map[string]string {
 		return x.Metadata
 	}
 	return nil
+}
+
+func (x *AgentInfo) GetAgentCard() string {
+	if x != nil {
+		return x.AgentCard
+	}
+	return ""
 }
 
 // ReportInvokeRequest is sent after an A2A Invoke completes so the control
@@ -695,12 +717,14 @@ var File_proto_agentmesh_v1_control_plane_proto protoreflect.FileDescriptor
 
 const file_proto_agentmesh_v1_control_plane_proto_rawDesc = "" +
 	"\n" +
-	"&proto/agentmesh/v1/control_plane.proto\x12\fagentmesh.v1\"\xf2\x01\n" +
+	"&proto/agentmesh/v1/control_plane.proto\x12\fagentmesh.v1\"\x91\x02\n" +
 	"\x0fRegisterRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\"\n" +
 	"\fcapabilities\x18\x02 \x03(\tR\fcapabilities\x12\x1a\n" +
 	"\bendpoint\x18\x03 \x01(\tR\bendpoint\x12G\n" +
-	"\bmetadata\x18\x04 \x03(\v2+.agentmesh.v1.RegisterRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\bmetadata\x18\x04 \x03(\v2+.agentmesh.v1.RegisterRequest.MetadataEntryR\bmetadata\x12\x1d\n" +
+	"\n" +
+	"agent_card\x18\x05 \x01(\tR\tagentCard\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Y\n" +
@@ -725,12 +749,14 @@ const file_proto_agentmesh_v1_control_plane_proto_rawDesc = "" +
 	"capability\x18\x01 \x01(\tR\n" +
 	"capability\"E\n" +
 	"\x14SelectTargetResponse\x12-\n" +
-	"\x05agent\x18\x01 \x01(\v2\x17.agentmesh.v1.AgentInfoR\x05agent\"\xe6\x01\n" +
+	"\x05agent\x18\x01 \x01(\v2\x17.agentmesh.v1.AgentInfoR\x05agent\"\x85\x02\n" +
 	"\tAgentInfo\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\"\n" +
 	"\fcapabilities\x18\x02 \x03(\tR\fcapabilities\x12\x1a\n" +
 	"\bendpoint\x18\x03 \x01(\tR\bendpoint\x12A\n" +
-	"\bmetadata\x18\x04 \x03(\v2%.agentmesh.v1.AgentInfo.MetadataEntryR\bmetadata\x1a;\n" +
+	"\bmetadata\x18\x04 \x03(\v2%.agentmesh.v1.AgentInfo.MetadataEntryR\bmetadata\x12\x1d\n" +
+	"\n" +
+	"agent_card\x18\x05 \x01(\tR\tagentCard\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa0\x01\n" +

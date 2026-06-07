@@ -21,6 +21,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"log"
 	"strings"
@@ -115,6 +116,9 @@ func main() {
 		inbound = grpcdp.NewServer()
 	case "a2a":
 		card := a2adp.BuildCard(cfg.AgentID, "AgentMesh agent "+cfg.AgentID, cfg.Endpoint, "0.1.0", cfg.Capabilities)
+		if cardJSON, err := json.Marshal(card); err == nil {
+			cfg.AgentCardJSON = string(cardJSON)
+		}
 		inbound = a2adp.NewServer(card)
 	default:
 		log.Fatalf("unknown --data-plane %q (want grpc or a2a)", *dataPlane)

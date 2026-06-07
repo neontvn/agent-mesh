@@ -49,6 +49,11 @@ message RegisterRequest {
     // Free-form metadata describing the agent (framework, version, etc.).
     map<string, string> metadata = 4;
 
+    // A2A AgentCard for this agent, serialized as canonical JSON. Optional;
+    // populated when the sidecar runs the A2A data plane. The card's JSON form
+    // is its source of truth, so it is carried verbatim rather than re-modeled
+    // as nested protobuf messages.
+    string agent_card = 5;
 }
 
 // RegisterResponse is returned to the sidecar after a successful registration.
@@ -119,6 +124,10 @@ message AgentInfo {
     repeated string capabilities = 2;
     string endpoint = 3;
     map<string, string> metadata = 4;
+
+    // A2A AgentCard as canonical JSON, propagated from registration. Empty for
+    // agents that registered without one (e.g. the gRPC data plane).
+    string agent_card = 5;
 }
 
 // ReportInvokeRequest is sent after an A2A Invoke completes so the control
