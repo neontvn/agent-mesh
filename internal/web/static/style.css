@@ -10,22 +10,16 @@ html, body {
     -webkit-font-smoothing: antialiased;
 }
 
-body {
-    display: flex;
-    flex-direction: column;
-}
-
 #app {
     display: grid;
     grid-template-columns: 300px 1fr;
-    flex: 1 1 auto;
-    min-height: 0;
+    height: calc(100vh - 64px - 240px);
 }
 
 /* ===================== Live event stream ===================== */
 
 #event-stream {
-    flex: 0 0 240px;
+    height: 240px;
     display: flex;
     flex-direction: column;
     background: #060c1c;
